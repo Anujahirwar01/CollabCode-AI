@@ -54,3 +54,13 @@ export const profileController = async (req, res) => {
     });
 }
 
+export const logoutController = async (req, res) => {
+    try {
+        const token = req.cookies.token || req.headers.authorization.split(" ")[1];
+
+        await redisClient.set(token, 'logout', 'EX', 60 * 60 * 24 ); // 1 days
+        res.status(200).json({ message: "Logged out successfully" });
+    } catch (error) {
+        res.status(400).send(error.message);
+    }
+}
