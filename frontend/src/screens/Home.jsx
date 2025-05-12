@@ -1,11 +1,11 @@
-import React from "react";
-import { Routes, Route } from "react-router-dom";
+import React,{useContext} from "react";
+import { Routes} from "react-router-dom";
+import { UserContext } from "../context/user.context";
 
 const Home = () => {
+    const { user } = useContext(UserContext)
     return (
-        <div>
-            home
-        </div>
+        
     )
 }
 export default Home;
