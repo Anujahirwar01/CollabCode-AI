@@ -11,4 +11,9 @@ router.post('/create',
     
  )
 
+ router.get('/all',
+    authMiddleware.authUser,
+    projectController.getAllProjects
+ )
+
 export default router;

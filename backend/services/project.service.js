@@ -25,3 +25,13 @@ export const createProject = async ({
     }
     
 }
+
+export const getAllProjects= async ({userId}) => {
+    if(!userId) {
+        throw new Error('User ID is required');
+    }
+    const projects = await projectModel.find({
+        users: userId
+    }).populate('users', 'name email');
+    return projects;
+}
