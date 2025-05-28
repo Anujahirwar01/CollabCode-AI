@@ -20,3 +20,10 @@ export const createUser = async ({
     return user;
 
 }
+
+export const getAllusers = async ({userId}) => {
+    const users = await userModel.find({
+        _id: {$ne : userId}
+    }); // Exclude password field
+    return users;
+}

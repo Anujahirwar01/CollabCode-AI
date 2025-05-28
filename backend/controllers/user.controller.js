@@ -66,3 +66,34 @@ export const logoutController = async (req, res) => {
         res.status(400).send(error.message);
     }
 }
+
+// export const getAllUsersController = async (req, res) => {
+//     try {
+//         const users = await userModel.find({}, '-password'); // Exclude password field
+//         res.status(200).json({ users });
+//     } catch (error) {
+//         res.status(400).send(error.message);
+//     }
+// }
+
+export const getAllUsersController = async (req, res) => {
+    // const userId = req.params.id;
+
+    // if (!userId) {
+    //     return res.status(400).json({ error: 'User ID is required' });
+    // }
+
+    try {
+
+        const LoggedInUser = await userModel.findOne({email: req.user.email}); // Exclude password field
+        const allUsers = await userService.getAllusers({
+            userId: LoggedInUser._id
+        });
+        return res.status(200).json({
+            users: allUsers
+        });
+    }
+    catch (error) {
+        res.status(400).send(error.message);
+    }
+}
