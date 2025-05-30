@@ -6,10 +6,9 @@ const router = Router();
 
 router.post('/create',
     authMiddleware.authUser,
-    body('name').isString().withMessage('name i srequired'),
+    body('name').isString().withMessage('Name is required'),
     projectController.createProject
-    
- )
+)
 
  router.get('/all',
     authMiddleware.authUser,

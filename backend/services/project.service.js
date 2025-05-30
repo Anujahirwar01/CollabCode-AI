@@ -3,28 +3,30 @@ import projectModel from "../models/project.model.js";
 
 
 export const createProject = async ({
-    name,
-    userId
+    name, userId
 }) => {
-    if(!name) {
-        throw new Error('Name is required');
+    if (!name) {
+        throw new Error('Name is required')
     }
-    if(!userId) {
-        throw new Error('User ID is required');
+    if (!userId) {
+        throw new Error('UserId is required')
     }
+
     let project;
     try {
         project = await projectModel.create({
             name,
-            users: [userId]
+            users: [ userId ]
         });
-    } catch (err) {
-        if(err.code === 11000) {
-            throw new Error('Project name must be unique');
+    } catch (error) {
+        if (error.code === 11000) {
+            throw new Error('Project name already exists');
         }
-        throw err;
+        throw error;
     }
-    
+
+    return project;
+
 }
 
 export const getAllProjects= async ({userId}) => {
