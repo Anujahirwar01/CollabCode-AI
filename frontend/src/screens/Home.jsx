@@ -62,7 +62,7 @@ const Home = () => {
                             >{project.name}</h2>
 
                             <div className="flex gap-2">
-                                <p> <small> <i className="ri-user-line"></i> Collaborators</small> :</p>
+                                <p> <small> <i className="ri-user-line"></i> Collaborator</small> :</p>
                                 {project.users.length}
                             </div>
 
