@@ -73,6 +73,9 @@ io.on('connection',socket => {
         const message = data.message;
         console.log(data)
         const aiIsPresentInmessage = message.includes('@ai');
+        socket.broadcast.to(socket.roomId).emit('project-message',
+            data
+        )
         if(aiIsPresentInmessage) {
            const prompt = message.replace('@ai', '');
            const result = await generateResult(prompt);
@@ -85,9 +88,7 @@ io.on('connection',socket => {
            })
             return;
         }
-        socket.broadcast.to(socket.roomId).emit('project-message',
-            
-        )
+        
     })
 
      socket.on('disconnect', () => { 
