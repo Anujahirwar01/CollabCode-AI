@@ -180,6 +180,8 @@ const Project = () => {
 
     // Removed appendIncomingMessage and appendOutgoingMessage functions
 
+    
+
     function scrollToBottom() {
         messageBox.current.scrollTop = messageBox.current.scrollHeight
     }
