@@ -137,11 +137,11 @@ const Project = () => {
                 if (message.fileTree) {
                     setFileTree(message.fileTree || {})
                 }
-                setMessages(prevMessages => [ ...prevMessages, data ]) // Update messages state
+                setMessages(prevMessages => [ ...prevMessages, data ])
             } else {
 
 
-                setMessages(prevMessages => [ ...prevMessages, data ]) // Update messages state
+                setMessages(prevMessages => [ ...prevMessages, data ])
             }
         })
 
