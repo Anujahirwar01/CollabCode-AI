@@ -1,6 +1,5 @@
-import mongoose from "mongoose";
-import projectModel from "../models/project.model.js";
-
+import projectModel from '../models/project.model.js';
+import mongoose from 'mongoose';
 
 export const createProject = async ({
     name, userId
@@ -29,45 +28,57 @@ export const createProject = async ({
 
 }
 
-export const getAllProjects= async ({userId}) => {
-    if(!userId) {
-        throw new Error(' ID  required');
+
+export const getAllProjectByUserId = async ({ userId }) => {
+    if (!userId) {
+        throw new Error('UserId is required')
     }
-    const projects = await projectModel.find({
+
+    const allUserProjects = await projectModel.find({
         users: userId
-    }).populate('users', 'name email');
-    return projects;
+    })
+
+    return allUserProjects
 }
 
-export const addUserToProject = async ({projectId, users,userId}) => {
-    if(!projectId){
-        throw new Error('Project ID is required');
+export const addUsersToProject = async ({ projectId, users, userId }) => {
+
+    if (!projectId) {
+        throw new Error("projectId is required")
     }
 
-    if(!mongoose.isValidObjectId(projectId)){
-        throw new Error('Invalid Project ID');
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        throw new Error("Invalid projectId")
     }
 
-    if(!users){
-        throw new Error('Users are required');
+    if (!users) {
+        throw new Error("users are required")
     }
-    if(!Array.isArray(users) || users.some(userId => !mongoose.Types.ObjectId.isValid(userId))) {
+
+    if (!Array.isArray(users) || users.some(userId => !mongoose.Types.ObjectId.isValid(userId))) {
         throw new Error("Invalid userId(s) in users array")
     }
-    if(!userId) {
-        throw new Error('User ID is required');
+
+    if (!userId) {
+        throw new Error("userId is required")
     }
+
     if (!mongoose.Types.ObjectId.isValid(userId)) {
         throw new Error("Invalid userId")
     }
+
 
     const project = await projectModel.findOne({
         _id: projectId,
         users: userId
     })
-    if(!project) {
-        throw new Error('Project not found or user is not part of the project');
+
+    console.log(project)
+
+    if (!project) {
+        throw new Error("User not belong to this project")
     }
+
     const updatedProject = await projectModel.findOneAndUpdate({
         _id: projectId
     }, {
@@ -79,19 +90,49 @@ export const addUserToProject = async ({projectId, users,userId}) => {
     }, {
         new: true
     })
-    return updatedProject;
+
+    return updatedProject
+
+
+
 }
 
-export const getProjectById = async({ projectId }) => {
-    if(!projectId) {
-        throw new Error('Project ID is required');
+export const getProjectById = async ({ projectId }) => {
+    if (!projectId) {
+        throw new Error("projectId is required")
     }
-    if(!mongoose.Types.ObjectId.isValid(projectId)) {
-        throw new Error('Invalid Project ID');
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        throw new Error("Invalid projectId")
     }
+
     const project = await projectModel.findOne({
         _id: projectId
-    }).populate('users');
-    
+    }).populate('users')
+
+    return project;
+}
+
+export const updateFileTree = async ({ projectId, fileTree }) => {
+    if (!projectId) {
+        throw new Error("projectId is required")
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        throw new Error("Invalid projectId")
+    }
+
+    if (!fileTree) {
+        throw new Error("fileTree is required")
+    }
+
+    const project = await projectModel.findOneAndUpdate({
+        _id: projectId
+    }, {
+        fileTree
+    }, {
+        new: true
+    })
+
     return project;
 }

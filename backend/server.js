@@ -1,29 +1,24 @@
-import 'dotenv/config';// dotenv.config();
+import 'dotenv/config';
 import http from 'http';
+import app from './app.js';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import projectModel from './models/project.model.js'; // Assuming you have a project model
-// import SocketIO from 'socket.io';
-import {generateResult} from './services/ai.service.js'; // Assuming you have an AI service
-
 import mongoose from 'mongoose';
-
-import app from './app.js';
+import projectModel from './models/project.model.js';
+import { generateResult } from './services/ai.service.js';
 
 const port = process.env.PORT || 3000;
 
-// const io = new Server(server, {
-//     cors: {
-//         origin: '*'
-//     }
-// });
+
 
 const server = http.createServer(app);
-const io = new Server(server,{
+const io = new Server(server, {
     cors: {
-        origin: '*',
+        origin: '*'
     }
 });
+
+
 io.use(async (socket, next) => {
 
     try {
@@ -59,46 +54,57 @@ io.use(async (socket, next) => {
     }
 
 })
-// const server = require('http').createServer(app);
 
-io.on('connection',socket => {
 
-    socket.roomId = socket.project._id.toString();
+io.on('connection', socket => {
+    socket.roomId = socket.project._id.toString()
 
-    console.log('New client connected');
+
+    console.log('a user connected');
+
+
 
     socket.join(socket.roomId);
 
     socket.on('project-message', async data => {
+
         const message = data.message;
-        console.log(data)
-        const aiIsPresentInmessage = message.includes('@ai');
-        socket.broadcast.to(socket.roomId).emit('project-message',
-            data
-        )
-        if(aiIsPresentInmessage) {
-           const prompt = message.replace('@ai', '');
-           const result = await generateResult(prompt);
-           io.to(socket.roomId).emit('project-message', {
-            message: result,
-            sender: {
-                _id: 'ai',
-                email: 'AI'
-            },
-           })
-            return;
+
+        const aiIsPresentInMessage = message.includes('@ai');
+        socket.broadcast.to(socket.roomId).emit('project-message', data)
+
+        if (aiIsPresentInMessage) {
+
+
+            const prompt = message.replace('@ai', '');
+
+            const result = await generateResult(prompt);
+
+
+            io.to(socket.roomId).emit('project-message', {
+                message: result,
+                sender: {
+                    _id: 'ai',
+                    email: 'AI'
+                }
+            })
+
+
+            return
         }
-        
+
+
     })
 
-     socket.on('disconnect', () => { 
-        console.log('Client disconnected');
-        socket.leave(socket.roomId);
+    socket.on('disconnect', () => {
+        console.log('user disconnected');
+        socket.leave(socket.roomId)
     });
-})
-// server.listen(3000);
+});
+
+
+
 
 server.listen(port, () => {
-    console.log(`Server is running  port ${port}`);
-}
-);  
+    console.log(`Server is running on port ${port}`);
+})
