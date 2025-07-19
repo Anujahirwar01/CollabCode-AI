@@ -6,12 +6,13 @@ import { useNavigate } from 'react-router-dom'
 const Home = () => {
 
     const { user } = useContext(UserContext)
-    const [ isModalOpen, setIsModalOpen ] = useState(false)
-    const [ projectName, setProjectName ] = useState(null)
-    const [ project, setProject ] = useState([])
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [projectName, setProjectName] = useState("")
+    const [project, setProject] = useState([])
 
     const navigate = useNavigate()
 
+    // 🔧 createProject with refresh logic
     function createProject(e) {
         e.preventDefault()
         console.log({ projectName })
@@ -20,22 +21,33 @@ const Home = () => {
             name: projectName,
         })
             .then((res) => {
-                console.log(res)
+                console.log("Project created:", res.data)
                 setIsModalOpen(false)
+                setProjectName("") // reset input
+
+                // ✅ Fetch updated project list
+                axios.get('/projects/all')
+                    .then((res) => {
+                        setProject(res.data.projects)
+                    })
+                    .catch(err => {
+                        console.error("Error fetching projects after create:", err)
+                    })
             })
             .catch((error) => {
-                console.log(error)
+                console.error("Create project error:", error)
             })
     }
 
+    // 📥 Fetch projects on load
     useEffect(() => {
-        axios.get('/projects/all').then((res) => {
-            setProject(res.data.projects)
-
-        }).catch(err => {
-            console.log(err)
-        })
-
+        axios.get('/projects/all')
+            .then((res) => {
+                setProject(res.data.projects)
+            })
+            .catch(err => {
+                console.log(err)
+            })
     }, [])
 
     return (
@@ -57,20 +69,14 @@ const Home = () => {
                                 })
                             }}
                             className="project flex flex-col gap-2 cursor-pointer p-4 border border-slate-300 rounded-md min-w-52 hover:bg-slate-200">
-                            <h2
-                                className='font-semibold'
-                            >{project.name}</h2>
-
+                            <h2 className='font-semibold'>{project.name}</h2>
                             <div className="flex gap-2">
-                                <p> <small> <i className="ri-user-line"></i> Collaborator</small> :</p>
+                                <p><small><i className="ri-user-line"></i> Collaborators</small> :</p>
                                 {project.users.length}
                             </div>
-
                         </div>
                     ))
                 }
-
-
             </div>
 
             {isModalOpen && (
@@ -83,18 +89,31 @@ const Home = () => {
                                 <input
                                     onChange={(e) => setProjectName(e.target.value)}
                                     value={projectName}
-                                    type="text" className="mt-1 block w-full p-2 border border-gray-300 rounded-md" required />
+                                    type="text"
+                                    className="mt-1 block w-full p-2 border border-gray-300 rounded-md"
+                                    required
+                                />
                             </div>
                             <div className="flex justify-end">
-                                <button type="button" className="mr-2 px-4 py-2 bg-gray-300 rounded-md" onClick={() => setIsModalOpen(false)}>Cancel</button>
-                                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md">Create</button>
+                                <button
+                                    type="button"
+                                    className="mr-2 px-4 py-2 bg-gray-300 rounded-md"
+                                    onClick={() => setIsModalOpen(false)}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                                    disabled={!projectName.trim()}
+                                >
+                                    Create
+                                </button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
-
-
         </main>
     )
 }

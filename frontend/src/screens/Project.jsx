@@ -137,11 +137,11 @@ const Project = () => {
                 if (message.fileTree) {
                     setFileTree(message.fileTree || {})
                 }
-                setMessages(prevMessages => [ ...prevMessages, data ])
+                setMessages(prevMessages => [ ...prevMessages, data ]) // Update messages state
             } else {
 
 
-                setMessages(prevMessages => [ ...prevMessages, data ])
+                setMessages(prevMessages => [ ...prevMessages, data ]) // Update messages state
             }
         })
 
@@ -179,8 +179,6 @@ const Project = () => {
 
 
     // Removed appendIncomingMessage and appendOutgoingMessage functions
-
-    
 
     function scrollToBottom() {
         messageBox.current.scrollTop = messageBox.current.scrollHeight
