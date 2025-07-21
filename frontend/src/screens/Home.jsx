@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from 'react'
 import { UserContext } from '../context/user.context'
-import axios from "../config/axios"
+import axios from "../config/axios" // This axios import should now point to your configured instance
 import { useNavigate } from 'react-router-dom'
 import { Plus, Users, FolderOpen, Sparkles } from 'lucide-react'
 
@@ -12,25 +12,19 @@ const Home = () => {
 
     const navigate = useNavigate()
 
-    // 🔧 createProject with refresh logic
     function createProject(e) {
         e.preventDefault()
         console.log({ projectName })
 
-        axios.post('/projects/create', {
-            name: projectName,
-        }, {
-            withCredentials: true // ✅ Send cookie with request
-        })
+        // No need for manual headers here; the axios interceptor handles it
+        axios.post('/projects/create', { name: projectName })
             .then((res) => {
                 console.log("Project created:", res.data)
                 setIsModalOpen(false)
                 setProjectName("") // reset input
 
-                // ✅ Fetch updated project list
-                axios.get('/projects/all', {
-                    withCredentials: true // ✅ Send cookie here too
-                })
+                // Fetch updated project list (interceptor handles headers)
+                axios.get('/projects/all')
                     .then((res) => {
                         setProject(res.data.projects)
                     })
@@ -43,18 +37,27 @@ const Home = () => {
             })
     }
 
-    // 📥 Fetch projects on load
+    // Fetch projects on component load
     useEffect(() => {
-        axios.get('/projects/all', {
-            withCredentials: true // ✅ Include cookie on initial fetch
-        })
-            .then((res) => {
-                setProject(res.data.projects)
-            })
-            .catch(err => {
-                console.log(err)
-            })
-    }, [])
+        // Ensure that 'user' object is available before attempting fetch
+        // The interceptor will then add the 'token' if it exists in localStorage
+        if (user) { // Or even if you remove the 'user' check, it will attempt and get 401 if unauthenticated
+            axios.get('/projects/all') // No need for manual headers here
+                .then((res) => {
+                    setProject(res.data.projects)
+                })
+                .catch(err => {
+                    console.error("Error fetching projects on initial load:", err)
+                    if (err.response && err.response.status === 401) {
+                        console.log("Authentication failed for initial project fetch. User might need to log in again.");
+                        // navigate('/login'); // Consider redirecting to login on 401
+                    }
+                })
+        } else {
+            console.log("No user object in context, skipping initial project fetch or expecting 401 from interceptor.");
+            setProject([]); // Clear projects if no user is logged in
+        }
+    }, [user]); // Re-run this effect when 'user' context changes
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -123,11 +126,11 @@ const Home = () => {
                                 </div>
                                 <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                             </div>
-                            
+
                             <h3 className="text-lg font-bold text-slate-900 mb-2 group-hover:text-blue-700 transition-colors line-clamp-2">
                                 {proj.name}
                             </h3>
-                            
+
                             <div className="mt-auto">
                                 <div className="flex items-center justify-between text-sm text-slate-600">
                                     <div className="flex items-center space-x-2">
@@ -136,14 +139,13 @@ const Home = () => {
                                     </div>
                                     <div className="flex -space-x-2">
                                         {proj.users?.slice(0, 3).map((user, index) => (
-  <div
-    key={index}
-    className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full border-2 border-white flex items-center justify-center text-xs font-medium text-white"
-  >
-    {(user?.email?.charAt(0) || '?').toUpperCase()}
-  </div>
-))}
-
+                                            <div
+                                                key={index}
+                                                className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full border-2 border-white flex items-center justify-center text-xs font-medium text-white"
+                                            >
+                                                {(user?.email?.charAt(0) || '?').toUpperCase()}
+                                            </div>
+                                        ))}
                                         {proj.users.length > 3 && (
                                             <div className="w-8 h-8 bg-slate-400 rounded-full border-2 border-white flex items-center justify-center text-xs font-medium text-white">
                                                 +{proj.users.length - 3}
@@ -182,7 +184,7 @@ const Home = () => {
                             <h2 className="text-2xl font-bold text-slate-900">Create New Project</h2>
                             <p className="text-slate-600 mt-1">Give your project a memorable name</p>
                         </div>
-                        
+
                         <form onSubmit={createProject} className="p-6">
                             <div className="mb-6">
                                 <label className="block text-sm font-semibold text-slate-700 mb-3">
@@ -198,7 +200,7 @@ const Home = () => {
                                     autoFocus
                                 />
                             </div>
-                            
+
                             <div className="flex gap-3">
                                 <button
                                     type="button"
@@ -223,4 +225,4 @@ const Home = () => {
     )
 }
 
-export default Home
+export default Home;
