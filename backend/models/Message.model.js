@@ -8,7 +8,10 @@ const messageSchema = new mongoose.Schema({
         required: true,
     },
     sender: { // Store essential sender info (e.g., ID, email)
-        _id: { type: mongoose.Schema.Types.ObjectId, required: true },
+        _id: {
+            type: mongoose.Schema.Types.Mixed, // <--- CORRECTED: Allows both ObjectId and string 'ai'
+            required: true
+        },
         email: { type: String, required: true },
         // Add other sender fields if needed, e.g., name, profile picture
     },
