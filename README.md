@@ -1,114 +1,146 @@
-This is a solid README! To make it even better, let's focus on clarity, conciseness, and making it more engaging for potential users and contributors.
+🚀 CollabCode-AI
+CollabCode‑AI is a collaborative, cloud-based code editor powered by AI. It enables real-time collaboration, code execution in-browser via WebContainers, and AI assistance for writing code and explanations.
 
-Here's an improved version:
+✨ Features
+🔗 Real-time collaboration
+Multiple users can edit, chat, and work together in the same project.
 
-Codemate AI
-Codemate AI is a real-time collaborative coding platform powered by the MERN stack and enhanced with intelligent AI assistance. It allows multiple users to simultaneously edit code, communicate in real-time, and receive AI-driven suggestions, explanations, and debugging help.
+🧠 AI-powered assistance
+Integrated AI (e.g., OpenAI) to generate code, explanations, and suggestions within context.
 
-🚀 Key Features
-Secure User Authentication: Register and log in securely using JWT and HTTP-only cookies. Enjoy auth-protected routes to manage your private coding projects.
+🖥 Browser-based code execution
+Uses WebContainers to run full-stack JavaScript projects entirely in the browser.
 
-Real-time Collaboration: Work together seamlessly! Multiple users can edit the same project simultaneously with code changes synced instantly across all clients.
+💬 Built-in chat
+Share messages and interact with an AI assistant directly in the editor.
 
-Integrated Chat: Communicate effortlessly with your team through the built-in chat interface within each coding session, powered by Socket.io for instant message delivery.
+📁 File explorer & live preview
+Browse files, edit code, and preview live output side-by-side in the browser.
 
-Intelligent AI Assistance: Get immediate help from AI! Ask for code explanations, debug your code, generate test cases, or receive logic suggestions directly within your workspace.
+🛠 Architecture
+Frontend
+Developed in React with Tailwind CSS.
 
-Streamlined Project Management: Easily create, view, and manage your coding projects. Each project is securely tied to its collaborators.
+Real-time messaging via Socket.IO
 
-🛠 Tech Stack
-Category	Technologies
-Frontend	React.js, Tailwind CSS
-Backend	Node.js, Express.js
-Database	MongoDB Atlas
-Real-time	Socket.io
-AI Engine	OpenAI API
-Authentication	JWT + HTTP-only Cookies
+AI integration with markdown-to-jsx and highlight.js
 
-Export to Sheets
-⚙️ Get Started
-Follow these steps to set up and run Codemate AI locally:
+Backend
+Express server with:
 
-1. Clone the Repository
-Bash
+REST APIs for authentication, project, user, and message management
 
-git clone https://github.com/Anujahirwar01/CollabCode-AI.git
-cd CollabCode-AI
-2. Install Dependencies
-Install the necessary packages for both the backend and frontend:
+Socket.IO for real-time communication
 
-Bash
+JWT or cookie-based authentication
 
-# Install backend dependencies
-cd server
+Code runtime
+@webcontainer/api to spin up browser-side containers for npm installation and running dev servers.
+
+AI assistant
+Connects to an LLM service like OpenAI to receive chat-based code explanations and file suggestions.
+
+⚙️ Getting Started
+1. Install dependencies
+bash
+Copy
+Edit
+# Frontend
+cd frontend
 npm install
 
-# Install frontend dependencies
-cd ../client
+# Backend
+cd ../backend
 npm install
-3. Configure Environment Variables
-Create .env files in both the server and client directories with the following variables:
+2. Setup environment
+Create .env in both frontend & backend:
 
-For /server/.env:
+ini
+Copy
+Edit
+# Frontend
+VITE_API_URL=http://localhost:3000
 
-Ini, TOML
-
-PORT=5000
-MONGODB_URI=your_mongodb_uri
+# Backend
+PORT=3000
+MONGO_URI=mongodb://localhost:27017/collabcode
 JWT_SECRET=your_jwt_secret
 OPENAI_API_KEY=your_openai_key
-For /client/.env:
-
-Ini, TOML
-
-VITE_API_BASE_URL=http://localhost:5000
-4. Run the Application
-Start both the backend and frontend servers:
-
-Bash
-
-# Run the backend server
-cd server
+3. Run servers
+bash
+Copy
+Edit
+# Backend
+cd backend
 npm run dev
 
-# In a new terminal, run the frontend development server
-cd ../client
+# Frontend
+cd ../frontend
 npm run dev
-🧠 How to Use AI Assistance
-Once your project is running, navigate to a coding project and open the AI Assistant. Simply type your question (e.g., "Why is my loop not breaking?" or "How can I refactor this function?"), and the AI will provide a relevant code explanation, fix, or suggestion.
+Open http://localhost:5173, sign up or login, and try creating and collaborating on a project!
 
-📸 Screenshots
-(Replace with actual image links)
+📦 Project Structure
+bash
+Copy
+Edit
+frontend/           # React UI
+├─ src/
+│  ├─ config/        # API, WebContainer, Socket setup
+│  ├─ context/       # User authentication context
+│  ├─ screens/       # Pages: Home, Project, Login, Register
+│  └─ components/    # Shared UI & utilities
 
-Login Page: [Link to Login Page Screenshot]
+backend/            # Express server
+├─ controllers/     # API handlers
+├─ models/          # Mongoose schemas: User, Project, Message
+├─ routes/          # Auth, project, message endpoints
+└─ socket.js        # Socket.IO connection logic
+🧪 Usage Overview
+Authentication
+Users register, login, and receive a JWT.
 
-Live Code Editor: [Link to Live Code Editor Screenshot]
+Project flow
+Create or view projects; each project holds a shared file tree and chat.
 
-AI Assistant in Action: [Link to AI Assistant Screenshot]
+Real-time collaboration
+Developers collaborate via WebSocket—editing, chatting, and adding collaborators.
 
-🚀 Future Enhancements
-We're continuously working to improve Codemate AI! Here are some planned features:
+Live code execution
+npm install and npm start run inside a WebContainer, preview served live.
 
-Enhanced Code Editor: Implement syntax highlighting and auto-formatting for a smoother coding experience.
+AI assistant chat
+Ask AI questions or get code explanations via automated chat messages.
 
-Multi-language Support: Expand beyond JavaScript/Node.js to include languages like Python and Java.
+📋 Tech Stack
+Frontend: React, Tailwind CSS, lucide-react (icons), markdown-to-jsx, highlight.js, Socket.IO client, Vite + WebContainer
 
-Voice-based Interaction: Explore voice-based code explanations and AI interactions.
+Backend: Node.js, Express, Socket.IO server, Mongoose, JWT auth, OpenAI integration
 
-Comprehensive Version Control: Add project history and versioning capabilities.
+Real-time & Storage: Projects & messages stored in MongoDB
 
-🤝 Contributing
-We welcome contributions! If you'd like to contribute, please follow these steps:
+🛡️ Missing / Future Enhancements
+Realtime CRDT or OT syncing for collaborative code edits
 
-Fork the repository.
+Role-based permissions and project settings
 
-Create your feature branch: git checkout -b feature/your-feature.
+AI code completion/in-context refinement
 
-Commit your changes: git commit -m "Add your feature description".
+Persistent WebContainer state (e.g., file system caching)
 
-Push to the branch: git push origin feature/your-feature.
+Unit tests, deployment scripts, and CI/CD setup
 
-Open a pull request.
+🧑‍💻 Contributing
+Fork the repo
+
+Create a feature branch (git checkout -b feature/xyz)
+
+Commit your changes (git commit -m "Add feature xyz")
+
+Push (git push origin feature/xyz)
+
+Open a Pull Request
+
+Please follow the code style, testing, and commit guidelines provided.
 
 📄 License
-This project is licensed under the MIT License.
+MIT License ©
