@@ -1,63 +1,75 @@
-import React, { useContext, useState, useEffect } from 'react'
-import { UserContext } from '../context/user.context'
-import axios from "../config/axios" // This axios import should now point to your configured instance
-import { useNavigate } from 'react-router-dom'
-import { Plus, Users, FolderOpen, Sparkles } from 'lucide-react'
+import React, { useContext, useState, useEffect } from 'react';
+import { UserContext } from '../context/user.context';
+import axios from "../config/axios";
+import { useNavigate } from 'react-router-dom';
+import { Plus, Users, FolderOpen, Sparkles, Trash2 } from 'lucide-react';
 
 const Home = () => {
-    const { user } = useContext(UserContext)
-    const [isModalOpen, setIsModalOpen] = useState(false)
-    const [projectName, setProjectName] = useState("")
-    const [project, setProject] = useState([])
+    const { user } = useContext(UserContext);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [projectName, setProjectName] = useState("");
+    const [projects, setProjects] = useState([]);
 
-    const navigate = useNavigate()
+    const navigate = useNavigate();
 
-    function createProject(e) {
-        e.preventDefault()
-        console.log({ projectName })
-
-        // No need for manual headers here; the axios interceptor handles it
+    const createProject = (e) => {
+        e.preventDefault();
         axios.post('/projects/create', { name: projectName })
             .then((res) => {
-                console.log("Project created:", res.data)
-                setIsModalOpen(false)
-                setProjectName("") // reset input
-
-                // Fetch updated project list (interceptor handles headers)
-                axios.get('/projects/all')
-                    .then((res) => {
-                        setProject(res.data.projects)
-                    })
-                    .catch(err => {
-                        console.error("Error fetching projects after create:", err)
-                    })
+                console.log("Project created:", res.data);
+                setIsModalOpen(false);
+                setProjectName("");
+                setProjects(prevProjects => [...prevProjects, res.data]);
             })
             .catch((error) => {
-                console.error("Create project error:", error)
-            })
-    }
+                console.error("Create project error:", error);
+                let errorMessage = "Failed to create project.";
+                if (error.response && error.response.data) {
+                    const responseData = error.response.data;
+                    if (typeof responseData === 'string') {
+                        errorMessage = responseData;
+                    } else if (responseData.message) {
+                        errorMessage = responseData.message;
+                    } else if (responseData.error) {
+                        errorMessage = responseData.error;
+                    }
+                }
+                alert(errorMessage);
+            });
+    };
 
-    // Fetch projects on component load
+    const handleDelete = (e, projectId) => {
+        e.stopPropagation();
+        if (!window.confirm("Are you sure you want to delete this project? This action cannot be undone.")) {
+            return;
+        }
+        axios.delete(`/projects/delete/${projectId}`)
+            .then(res => {
+                console.log(res.data.message);
+                setProjects(prevProjects => prevProjects.filter(p => p._id !== projectId));
+            })
+            .catch(err => {
+                console.error("Error deleting project:", err);
+                alert("Failed to delete the project. Please try again.");
+            });
+    };
+
     useEffect(() => {
-        // Ensure that 'user' object is available before attempting fetch
-        // The interceptor will then add the 'token' if it exists in localStorage
-        if (user) { // Or even if you remove the 'user' check, it will attempt and get 401 if unauthenticated
-            axios.get('/projects/all') // No need for manual headers here
+        if (user) {
+            axios.get('/projects/all')
                 .then((res) => {
-                    setProject(res.data.projects)
+                    setProjects(res.data.projects);
                 })
                 .catch(err => {
-                    console.error("Error fetching projects on initial load:", err)
-                    if (err.response && err.response.status === 401) {
-                        console.log("Authentication failed for initial project fetch. User might need to log in again.");
-                        // navigate('/login'); // Consider redirecting to login on 401
+                    console.error("Error fetching projects on initial load:", err);
+                    if (err.response?.status === 401) {
+                        console.log("Authentication failed. User might need to log in again.");
                     }
-                })
+                });
         } else {
-            console.log("No user object in context, skipping initial project fetch or expecting 401 from interceptor.");
-            setProject([]); // Clear projects if no user is logged in
+            setProjects([]);
         }
-    }, [user]); // Re-run this effect when 'user' context changes
+    }, [user]);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
@@ -104,22 +116,26 @@ const Home = () => {
                         <h3 className="text-lg font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">
                             Create New Project
                         </h3>
-                        <p className="text-sm text-slate-500 mt-2 text-center">
-                            Start a new collaborative project
-                        </p>
                     </button>
 
                     {/* Project Cards */}
-                    {project.map((proj) => (
+                    {projects.map((proj) => (
                         <div
                             key={proj._id}
+                            // ✅ CORRECTED: Navigate using the project ID in the URL
                             onClick={() => {
-                                navigate(`/project`, {
-                                    state: { project: proj }
-                                })
+                                navigate(`/project/${proj._id}`);
                             }}
-                            className="group cursor-pointer bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/60 hover:border-blue-300 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 min-h-[200px] flex flex-col"
+                            className="group relative cursor-pointer bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-slate-200/60 hover:border-blue-300 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 min-h-[200px] flex flex-col"
                         >
+                            <button
+                                onClick={(e) => handleDelete(e, proj._id)}
+                                className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 text-slate-500 hover:bg-red-100 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all z-10"
+                                aria-label="Delete project"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+
                             <div className="flex items-center justify-between mb-4">
                                 <div className="w-12 h-12 bg-gradient-to-r from-emerald-400 to-blue-500 rounded-xl flex items-center justify-center">
                                     <FolderOpen className="w-6 h-6 text-white" />
@@ -138,12 +154,13 @@ const Home = () => {
                                         <span>{proj.users.length} collaborator{proj.users.length !== 1 ? 's' : ''}</span>
                                     </div>
                                     <div className="flex -space-x-2">
-                                        {proj.users?.slice(0, 3).map((user, index) => (
+                                        {proj.users?.slice(0, 3).map((u, index) => (
                                             <div
                                                 key={index}
                                                 className="w-8 h-8 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full border-2 border-white flex items-center justify-center text-xs font-medium text-white"
+                                                title={u?.email}
                                             >
-                                                {(user?.email?.charAt(0) || '?').toUpperCase()}
+                                                {(u?.email?.charAt(0) || '?').toUpperCase()}
                                             </div>
                                         ))}
                                         {proj.users.length > 3 && (
@@ -158,20 +175,13 @@ const Home = () => {
                     ))}
                 </div>
 
-                {project.length === 0 && (
-                    <div className="text-center py-16">
+                {projects.length === 0 && (
+                     <div className="text-center py-16">
                         <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
                             <FolderOpen className="w-12 h-12 text-slate-400" />
                         </div>
                         <h3 className="text-xl font-semibold text-slate-700 mb-2">No projects yet</h3>
                         <p className="text-slate-500 mb-6">Create your first project to get started</p>
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200"
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            Create Your First Project
-                        </button>
                     </div>
                 )}
             </main>
@@ -184,7 +194,6 @@ const Home = () => {
                             <h2 className="text-2xl font-bold text-slate-900">Create New Project</h2>
                             <p className="text-slate-600 mt-1">Give your project a memorable name</p>
                         </div>
-
                         <form onSubmit={createProject} className="p-6">
                             <div className="mb-6">
                                 <label className="block text-sm font-semibold text-slate-700 mb-3">
@@ -200,7 +209,6 @@ const Home = () => {
                                     autoFocus
                                 />
                             </div>
-
                             <div className="flex gap-3">
                                 <button
                                     type="button"
@@ -222,7 +230,7 @@ const Home = () => {
                 </div>
             )}
         </div>
-    )
-}
+    );
+};
 
 export default Home;
