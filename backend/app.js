@@ -7,8 +7,9 @@ import cookieParser from 'cookie-parser';
 import projectRoutes from './routes/project.routes.js';
 import cors from 'cors';
 import aiRoutes from './routes/ai.routes.js';
-import { getMessagesByProjectId } from './controllers/message.controller.js'; // Import new controller
-import { authUser } from './middleware/auth.middleware.js'; // Assuming you have this path for authUser
+import { getMessagesByProjectId } from './controllers/message.controller.js'; 
+import messageRoutes from './routes/message.routes.js';
+import { authUser } from './middleware/auth.middleware.js'; 
 
 connect();
 const app = express();
@@ -23,13 +24,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+app.use('/messages', messageRoutes);
 app.use('/users', userRoutes);
 app.use('/projects', projectRoutes);
 app.use('/ai', aiRoutes);
 
-// NEW ROUTE: Fetch messages for a specific project
-// This route should be protected by your authUser middleware
-app.get('/projects/:projectId/messages', authUser, getMessagesByProjectId); // <--- ADD THIS LINE
+
+app.get('/projects/:projectId/messages', authUser, getMessagesByProjectId); 
 
 app.get('/', (req, res) => {
     res.send('Hello World!');

@@ -15,7 +15,7 @@ export const createProject = async ({
     try {
         project = await projectModel.create({
             name,
-            users: [ userId ]
+            users: [userId]
         });
     } catch (error) {
         if (error.code === 11000) {
@@ -25,9 +25,7 @@ export const createProject = async ({
     }
 
     return project;
-
 }
-
 
 export const getAllProjectByUserId = async ({ userId }) => {
     if (!userId) {
@@ -46,34 +44,26 @@ export const addUsersToProject = async ({ projectId, users, userId }) => {
     if (!projectId) {
         throw new Error("projectId is required")
     }
-
     if (!mongoose.Types.ObjectId.isValid(projectId)) {
         throw new Error("Invalid projectId")
     }
-
     if (!users) {
         throw new Error("users are required")
     }
-
     if (!Array.isArray(users) || users.some(userId => !mongoose.Types.ObjectId.isValid(userId))) {
         throw new Error("Invalid userId(s) in users array")
     }
-
     if (!userId) {
         throw new Error("userId is required")
     }
-
     if (!mongoose.Types.ObjectId.isValid(userId)) {
         throw new Error("Invalid userId")
     }
-
 
     const project = await projectModel.findOne({
         _id: projectId,
         users: userId
     })
-
-    console.log(project)
 
     if (!project) {
         throw new Error("User not belong to this project")
@@ -92,20 +82,15 @@ export const addUsersToProject = async ({ projectId, users, userId }) => {
     })
 
     return updatedProject
-
-
-
 }
 
 export const getProjectById = async ({ projectId }) => {
     if (!projectId) {
         throw new Error("projectId is required")
     }
-
     if (!mongoose.Types.ObjectId.isValid(projectId)) {
         throw new Error("Invalid projectId")
     }
-
     const project = await projectModel.findOne({
         _id: projectId
     }).populate('users')
@@ -117,15 +102,12 @@ export const updateFileTree = async ({ projectId, fileTree }) => {
     if (!projectId) {
         throw new Error("projectId is required")
     }
-
     if (!mongoose.Types.ObjectId.isValid(projectId)) {
         throw new Error("Invalid projectId")
     }
-
     if (!fileTree) {
         throw new Error("fileTree is required")
     }
-
     const project = await projectModel.findOneAndUpdate({
         _id: projectId
     }, {
@@ -136,3 +118,26 @@ export const updateFileTree = async ({ projectId, fileTree }) => {
 
     return project;
 }
+
+export const deleteProject = async ({ projectId, userId }) => {
+    if (!projectId) {
+        throw new Error("projectId is required");
+    }
+    if (!userId) {
+        throw new Error("userId is required");
+    }
+
+    const project = await projectModel.findById(projectId);
+
+    if (!project) {
+        throw new Error('Project not found');
+    }
+
+    if (project.users[0].toString() !== userId.toString()) {
+        throw new Error('User not authorized to delete this project');
+    }
+
+    await projectModel.findByIdAndDelete(projectId);
+
+    return;
+};

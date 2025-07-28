@@ -21,9 +21,12 @@ export const createUser = async ({
 
 }
 
-export const getAllUsers = async ({ userId }) => {
-    const users = await userModel.find({
-        _id: { $ne: userId }
-    });
+// import userModel from '../models/user.model.js';
+
+// Add or replace this function in your service file
+export const getAllUsers = async () => {
+    // This function now correctly takes no arguments.
+    // It finds all users and excludes the password field for security.
+    const users = await userModel.find().select('-password');
     return users;
-}
+};

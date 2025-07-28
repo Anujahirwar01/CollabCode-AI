@@ -77,7 +77,7 @@ export const profileController = async (req, res) => {
 export const logoutController = async (req, res) => {
     try {
 
-        const token = req.cookies.token || req.headers.authorization.split(' ')[ 1 ];
+        const token = req.cookies.token || req.headers.authorization.split(' ')[1];
 
         redisClient.set(token, 'logout', 'EX', 60 * 60 * 24);
 
@@ -92,24 +92,18 @@ export const logoutController = async (req, res) => {
     }
 }
 
+// ✅ CORRECTED VERSION of the function
 export const getAllUsersController = async (req, res) => {
     try {
-
-        const loggedInUser = await userModel.findOne({
-            email: req.user.email
-        })
-
-        const allUsers = await userService.getAllUsers({ userId: loggedInUser._id });
+        // Call the service to get all users, no parameter is needed.
+        const allUsers = await userService.getAllUsers();
 
         return res.status(200).json({
             users: allUsers
-        })
+        });
 
     } catch (err) {
-
-        console.log(err)
-
-        res.status(400).json({ error: err.message })
-
+        console.log(err);
+        res.status(500).json({ error: 'Server error while fetching users' });
     }
-}
+};

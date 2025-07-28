@@ -1,29 +1,27 @@
-// backend/models/Message.model.js
 import mongoose from 'mongoose';
 
 const messageSchema = new mongoose.Schema({
-    projectId: {
+    // ✅ CORRECTED: Field name changed to 'project' to match your controller's query
+    project: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Project', // Ensure you have a Project model defined elsewhere
+        ref: 'Project',
         required: true,
     },
-    sender: { // Store essential sender info (e.g., ID, email)
-        _id: {
-            type: mongoose.Schema.Types.Mixed, // <--- CORRECTED: Allows both ObjectId and string 'ai'
-            required: true
-        },
-        email: { type: String, required: true },
-        // Add other sender fields if needed, e.g., name, profile picture
+    // ✅ CORRECTED: 'sender' is now a direct reference to the User model
+    sender: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User', // This allows .populate() to fetch the user's details
+        required: true
     },
-    message: { // This will store the actual message content
-        type: String, // Store it as a string (will be stringified JSON for AI, plain for user)
+    message: {
+        type: String,
         required: true,
     },
     timestamp: {
         type: Date,
         default: Date.now,
     },
-}, { timestamps: true }); // Add timestamps for createdAt/updatedAt
+});
 
 const Message = mongoose.model('Message', messageSchema);
 

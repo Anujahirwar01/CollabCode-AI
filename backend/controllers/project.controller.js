@@ -131,3 +131,30 @@ export const updateFileTree = async (req, res) => {
     }
 
 }
+export const deleteProject = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const loggedInUser = await userModel.findOne({ email: req.user.email });
+        if (!loggedInUser) {
+            return res.status(401).json({ error: 'Authentication failed' });
+        }
+
+        await projectService.deleteProject({
+            projectId: id,
+            userId: loggedInUser._id
+        });
+
+        res.status(200).json({ message: 'Project deleted successfully' });
+
+    } catch (err) {
+        console.log(err);
+        if (err.message === 'Project not found') {
+            return res.status(404).json({ error: err.message });
+        }
+        if (err.message === 'User not authorized to delete this project') {
+            return res.status(403).json({ error: err.message });
+        }
+        res.status(500).json({ error: 'Server error while deleting project' });
+    }
+};
