@@ -1,154 +1,121 @@
-import projectModel from '../models/project.model.js';
 import * as projectService from '../services/project.service.js';
-import userModel from '../models/user.model.js';
 import { validationResult } from 'express-validator';
 
+/**
+ * Helper function to recursively trim all keys in the file tree object.
+ * This prevents saving filenames with leading/trailing whitespace.
+ */
+function trimFileTreeKeys(tree) {
+    if (!tree || typeof tree !== 'object') return tree;
+
+    return Object.keys(tree).reduce((acc, key) => {
+        const trimmedKey = key.trim(); // Trim the current key
+        acc[trimmedKey] = trimFileTreeKeys(tree[key]); // Recurse for the nested object
+        return acc;
+    }, {});
+}
+
+/*
+NOTE: All functions below assume your authentication middleware has been updated
+to find the user and attach their ID to the request, like: req.userId = user._id;
+This avoids repetitive database lookups in every controller function.
+*/
 
 export const createProject = async (req, res) => {
-
     const errors = validationResult(req);
-
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
     try {
-
         const { name } = req.body;
-        const loggedInUser = await userModel.findOne({ email: req.user.email });
-        const userId = loggedInUser._id;
-
-        const newProject = await projectService.createProject({ name, userId });
-
+        // Assumes auth middleware provides req.userId
+        const newProject = await projectService.createProject({ name, userId: req.userId });
         res.status(201).json(newProject);
-
     } catch (err) {
-        console.log(err);
-        res.status(400).send(err.message);
+        console.error(err);
+        res.status(400).json({ error: err.message });
     }
-
-
-
-}
+};
 
 export const getAllProject = async (req, res) => {
     try {
-
-        const loggedInUser = await userModel.findOne({
-            email: req.user.email
-        })
-
-        const allUserProjects = await projectService.getAllProjectByUserId({
-            userId: loggedInUser._id
-        })
-
-        return res.status(200).json({
-            projects: allUserProjects
-        })
-
+        // Assumes auth middleware provides req.userId
+        const allUserProjects = await projectService.getAllProjectByUserId({ userId: req.userId });
+        return res.status(200).json({ projects: allUserProjects });
     } catch (err) {
-        console.log(err)
-        res.status(400).json({ error: err.message })
+        console.error(err);
+        res.status(400).json({ error: err.message });
     }
-}
+};
 
 export const addUserToProject = async (req, res) => {
     const errors = validationResult(req);
-
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
     try {
-
-        const { projectId, users } = req.body
-
-        const loggedInUser = await userModel.findOne({
-            email: req.user.email
-        })
-
-
+        const { projectId, users } = req.body;
+        // Assumes auth middleware provides req.userId for authorization in the service
         const project = await projectService.addUsersToProject({
             projectId,
             users,
-            userId: loggedInUser._id
-        })
-
-        return res.status(200).json({
-            project,
-        })
-
+            userId: req.userId
+        });
+        return res.status(200).json({ project });
     } catch (err) {
-        console.log(err)
-        res.status(400).json({ error: err.message })
+        console.error(err);
+        res.status(400).json({ error: err.message });
     }
-
-
-}
+};
 
 export const getProjectById = async (req, res) => {
-
-    const { projectId } = req.params;
-
     try {
-
+        const { projectId } = req.params;
         const project = await projectService.getProjectById({ projectId });
-
-        return res.status(200).json({
-            project
-        })
-
+        return res.status(200).json({ project });
     } catch (err) {
-        console.log(err)
-        res.status(400).json({ error: err.message })
+        console.error(err);
+        res.status(400).json({ error: err.message });
     }
-
-}
+};
 
 export const updateFileTree = async (req, res) => {
     const errors = validationResult(req);
-
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
     }
 
     try {
-
         const { projectId, fileTree } = req.body;
+        
+        // ✅ **THE FIX**: Sanitize the fileTree object before passing it to the service.
+        const sanitizedFileTree = trimFileTreeKeys(fileTree);
 
         const project = await projectService.updateFileTree({
             projectId,
-            fileTree
-        })
+            fileTree: sanitizedFileTree
+        });
 
-        return res.status(200).json({
-            project
-        })
-
+        return res.status(200).json({ project });
     } catch (err) {
-        console.log(err)
-        res.status(400).json({ error: err.message })
+        console.error(err);
+        res.status(400).json({ error: err.message });
     }
+};
 
-}
 export const deleteProject = async (req, res) => {
     try {
         const { id } = req.params;
-
-        const loggedInUser = await userModel.findOne({ email: req.user.email });
-        if (!loggedInUser) {
-            return res.status(401).json({ error: 'Authentication failed' });
-        }
-
+        // Assumes auth middleware provides req.userId
         await projectService.deleteProject({
             projectId: id,
-            userId: loggedInUser._id
+            userId: req.userId
         });
-
         res.status(200).json({ message: 'Project deleted successfully' });
-
     } catch (err) {
-        console.log(err);
+        console.error(err);
         if (err.message === 'Project not found') {
             return res.status(404).json({ error: err.message });
         }
