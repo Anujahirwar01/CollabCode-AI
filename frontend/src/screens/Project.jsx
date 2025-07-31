@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useRef, useCallback, memo } from 'react';
 import { UserContext } from '../context/user.context';
-import { useNavigate, useParams } from 'react-router-dom'; // ✅ USE useParams, NOT useLocation
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../config/axios';
 import { getSocket, attachSocketListener, sendSocketMessage } from '../config/socket';
 import Markdown from 'markdown-to-jsx';
@@ -12,7 +12,35 @@ import {
     MessageSquare, Code, Monitor, ChevronRight, User as UserIcon
 } from 'lucide-react';
 
-// --- Helper Components & Functions (These are correct) ---
+// --- HELPER FUNCTIONS ---
+function trimFileTreeKeys(tree) {
+    if (!tree || typeof tree !== 'object') return tree;
+    return Object.keys(tree).reduce((acc, key) => {
+        const trimmedKey = key.trim();
+        acc[trimmedKey] = trimFileTreeKeys(tree[key]);
+        return acc;
+    }, {});
+}
+
+function transformToNested(flatTree) {
+    const nestedTree = {};
+    for (const path in flatTree) {
+        const parts = path.split('/');
+        let currentLevel = nestedTree;
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            if (i < parts.length - 1) { // It's a directory
+                if (!currentLevel[part]) {
+                    currentLevel[part] = { directory: {} };
+                }
+                currentLevel = currentLevel[part].directory;
+            } else { // It's the file
+                currentLevel[part] = flatTree[path];
+            }
+        }
+    }
+    return nestedTree;
+}
 
 function deepMerge(target, source) {
     const output = { ...target };
@@ -28,20 +56,19 @@ function deepMerge(target, source) {
     return output;
 }
 
-const FileTreeItem = memo(({ name, item, path, onFileSelect }) => { /* ... (no changes needed) */ });
-const SyntaxHighlightedCode = memo(({ language, code }) => { /* ... (no changes needed) */ });
-const WriteAiMessage = memo(({ rawMessage }) => { /* ... (no changes needed) */ });
+// --- HELPER COMPONENTS ---
+const FileTreeItem = memo(({ name, item, path, onFileSelect }) => { /* ... (user's implementation) */ });
+const SyntaxHighlightedCode = memo(({ language, code }) => { /* ... (user's implementation) */ });
+const WriteAiMessage = memo(({ rawMessage }) => { /* ... (user's implementation) */ });
 
-
-// --- Main Project Component ---
-
+// --- MAIN PROJECT COMPONENT ---
 const Project = () => {
     const navigate = useNavigate();
     const { user } = useContext(UserContext);
-    const { projectId } = useParams(); // ✅ Get the permanent projectId from the URL
+    const { projectId } = useParams();
 
     // State
-    const [project, setProject] = useState(null); // ✅ Initialize project as null
+    const [project, setProject] = useState(null);
     const [messages, setMessages] = useState([]);
     const [users, setUsers] = useState([]);
     const [fileTree, setFileTree] = useState({});
@@ -82,7 +109,7 @@ const Project = () => {
             .catch(err => console.error("Error adding collaborators:", err));
     }, [projectId, selectedUserIds]);
 
-    // ✅ CORRECTED DATA FETCHING useEffect TO BE REFRESH-SAFE
+    // Data fetching useEffect
     useEffect(() => {
         if (!projectId) { 
             navigate('/home'); 
@@ -97,8 +124,9 @@ const Project = () => {
                     axios.get(`/messages/${projectId}`),
                     axios.get('/users/all')
                 ]);
+                const initialFlatTree = trimFileTreeKeys(projRes.data.project.fileTree || {});
                 setProject(projRes.data.project);
-                setFileTree(projRes.data.project.fileTree || {});
+                setFileTree(initialFlatTree);
                 setMessages(msgRes.data.messages);
                 setUsers(usersRes.data.users);
             } catch (err) {
@@ -113,8 +141,10 @@ const Project = () => {
         fetchInitialData();
     }, [projectId, navigate]);
 
+    // WebContainer and Sockets useEffect
     useEffect(() => {
-        if (!projectId || isProjectLoading) return;
+        if (isProjectLoading) return;
+
         const socket = getSocket(projectId, setIsSocketConnected);
 
         const handleNewMessage = (data) => {
@@ -123,27 +153,34 @@ const Project = () => {
                 try {
                     const parsed = JSON.parse(data.message);
                     if (parsed.fileTree && Object.keys(parsed.fileTree).length > 0) {
-                        setFileTree(prevTree => deepMerge(prevTree, parsed.fileTree));
-                        webContainer?.mount(parsed.fileTree);
+                        const flatTreeFromAI = trimFileTreeKeys(parsed.fileTree);
+                        const nestedTreeForMount = transformToNested(flatTreeFromAI);
+                        setFileTree(prevTree => deepMerge(prevTree, flatTreeFromAI));
+                        webContainer?.mount(nestedTreeForMount);
                     }
                 } catch (e) {
-                    console.log("AI message was not a processable JSON object.");
+                    console.error("AI message was not a processable JSON object:", e);
                 }
             }
         };
-        
+
         const unsubscribe = attachSocketListener(socket, 'project-message', handleNewMessage);
-        
-        if (!webContainerInitRef.current && fileTree && Object.keys(fileTree).length > 0) {
+
+        if (!webContainerInitRef.current && Object.keys(fileTree).length > 0) {
             webContainerInitRef.current = true;
             getWebContainer().then(container => {
                 setWebContainer(container);
-                container.mount(fileTree);
+                const initialNestedTree = transformToNested(fileTree);
+                container.mount(initialNestedTree);
                 container.on('server-ready', (port, url) => setIframeUrl(url));
-            }).catch(error => { webContainerInitRef.current = false; });
+            }).catch(error => {
+                console.error("WebContainer failed to initialize:", error);
+                webContainerInitRef.current = false;
+            });
         }
+        
         return () => unsubscribe();
-    }, [projectId, isProjectLoading, webContainer, fileTree]);
+    }, [projectId, isProjectLoading, fileTree, webContainer]);
 
     const handleFileSelect = useCallback((path, content) => {
         setCurrentFilePath(path);
@@ -167,8 +204,17 @@ const Project = () => {
         axios.put('/projects/update-file-tree', { projectId: projectId, fileTree: newFileTree });
     };
     
+    // ✅ DEBUGGING VERSION of sendMessage
     const sendMessage = useCallback(() => {
+        // This log will tell us exactly which condition is failing
+        console.log("Attempting to send message. Checking conditions:", {
+            isMessageEmpty: !message.trim(),
+            isProjectIdMissing: !projectId,
+            isSocketDisconnected: !isSocketConnected,
+        });
+
         if (!message.trim() || !projectId || !isSocketConnected) return;
+
         const payload = { projectId, message, sender: { _id: user._id, email: user.email }};
         sendSocketMessage(getSocket(projectId), 'project-message', payload);
         setMessage("");
