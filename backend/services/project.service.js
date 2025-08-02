@@ -133,7 +133,8 @@ export const deleteProject = async ({ projectId, userId }) => {
         throw new Error('Project not found');
     }
 
-    if (project.users[0].toString() !== userId.toString()) {
+    // ✅ FIX: Check if the user is in the project's user list
+    if (!project.users.includes(userId)) {
         throw new Error('User not authorized to delete this project');
     }
 
