@@ -1,46 +1,45 @@
-import React, { useState, useContext } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import axios from '../config/axios'
-import { UserContext } from '../context/user.context'
-import { Mail, Lock, Sparkles, ArrowRight } from 'lucide-react'
+import React, { useState, useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from '../config/axios';
+import { UserContext } from '../context/user.context';
+import { Mail, Lock, Sparkles, ArrowRight } from 'lucide-react';
 
 const Login = () => {
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [isLoading, setIsLoading] = useState(false)
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
-    const { setUser } = useContext(UserContext)
-    const navigate = useNavigate()
+    const { setUser } = useContext(UserContext);
+    const navigate = useNavigate();
 
     function submitHandler(e) {
-        e.preventDefault()
-        setIsLoading(true)
+        e.preventDefault();
+        setIsLoading(true);
 
         axios.post('/users/login', {
             email,
             password
         }).then((res) => {
-            console.log(res.data)
-            localStorage.setItem('token', res.data.token)
-            setUser(res.data.user)
-            navigate('/')
+            console.log(res.data);
+            localStorage.setItem('token', res.data.token);
+            setUser(res.data.user);
+            navigate('/'); // Navigating to your home route
         }).catch((err) => {
-            console.log(err.response.data)
+            console.error(err.response?.data || "Login failed");
+            alert("Login failed. Please check your credentials.");
         }).finally(() => {
-            setIsLoading(false)
-        })
+            setIsLoading(false);
+        });
     }
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-4">
-            {/* Background decoration */}
             <div className="absolute inset-0 overflow-hidden">
                 <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl"></div>
                 <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl"></div>
             </div>
 
             <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl w-full max-w-md p-8">
-                {/* Header */}
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <Sparkles className="w-8 h-8 text-white" />
@@ -50,7 +49,6 @@ const Login = () => {
                 </div>
 
                 <form onSubmit={submitHandler} className="space-y-6">
-                    {/* Email Field */}
                     <div>
                         <label className="block text-sm font-semibold text-blue-100 mb-3" htmlFor="email">
                             Email Address
@@ -68,7 +66,6 @@ const Login = () => {
                         </div>
                     </div>
 
-                    {/* Password Field */}
                     <div>
                         <label className="block text-sm font-semibold text-blue-100 mb-3" htmlFor="password">
                             Password
@@ -86,7 +83,6 @@ const Login = () => {
                         </div>
                     </div>
 
-                    {/* Submit Button */}
                     <button
                         type="submit"
                         disabled={isLoading}
@@ -103,7 +99,6 @@ const Login = () => {
                     </button>
                 </form>
 
-                {/* Footer */}
                 <div className="mt-8 text-center">
                     <p className="text-blue-200">
                         Don't have an account?{' '}
@@ -115,20 +110,9 @@ const Login = () => {
                         </Link>
                     </p>
                 </div>
-
-                {/* Additional Features */}
-                <div className="mt-6 pt-6 border-t border-white/10">
-                    <div className="flex items-center justify-center space-x-4 text-sm text-blue-200">
-                        <span>Secure</span>
-                        <div className="w-1 h-1 bg-blue-300 rounded-full"></div>
-                        <span>Fast</span>
-                        <div className="w-1 h-1 bg-blue-300 rounded-full"></div>
-                        <span>Reliable</span>
-                    </div>
-                </div>
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default Login
+export default Login;

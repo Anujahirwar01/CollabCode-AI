@@ -13,30 +13,26 @@ const Home = () => {
     const navigate = useNavigate();
 
     const createProject = (e) => {
-        e.preventDefault();
-        axios.post('/projects/create', { name: projectName })
-            .then((res) => {
-                console.log("Project created:", res.data);
-                setIsModalOpen(false);
-                setProjectName("");
-                setProjects(prevProjects => [...prevProjects, res.data]);
-            })
-            .catch((error) => {
-                console.error("Create project error:", error);
-                let errorMessage = "Failed to create project.";
-                if (error.response && error.response.data) {
-                    const responseData = error.response.data;
-                    if (typeof responseData === 'string') {
-                        errorMessage = responseData;
-                    } else if (responseData.message) {
-                        errorMessage = responseData.message;
-                    } else if (responseData.error) {
-                        errorMessage = responseData.error;
-                    }
-                }
-                alert(errorMessage);
-            });
-    };
+    e.preventDefault();
+    axios.post('/projects/create', { name: projectName })
+        .then((res) => {
+            console.log("Project created:", res.data);
+            setIsModalOpen(false);
+            setProjectName("");
+            setProjects(prevProjects => [...prevProjects, res.data]);
+        })
+        .catch((error) => {
+            console.error("Create project error:", error);
+            
+            if (error.response?.data?.errors) {
+                console.log("Validation errors from backend:", error.response.data.errors);
+                alert(`Validation Error: ${error.response.data.errors[0].msg}`);
+                return;
+            }
+            
+            alert("An unknown error occurred while creating the project.");
+        });
+};
 
     const handleDelete = (e, projectId) => {
         e.stopPropagation();
