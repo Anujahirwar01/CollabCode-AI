@@ -1,4 +1,3 @@
-// backend/server.js
 import 'dotenv/config';
 import http from 'http';
 import app from './app.js';
@@ -44,13 +43,12 @@ io.use(async (socket, next) => {
 });
 
 // Main Socket.IO Connection Handler
-// Main Socket.IO Connection Handler
 io.on('connection', socket => {
     socket.roomId = socket.project._id.toString();
     console.log(`User ${socket.user.email} connected to project ${socket.roomId}`);
     socket.join(socket.roomId);
 
-    // ✅ CORRECTED: Listen for incoming messages from clients
+    // Listen for incoming messages from clients
     socket.on('project-message', async (data) => {
         const userMessageContent = data.message;
         const senderInfo = data.sender;
@@ -71,30 +69,50 @@ io.on('connection', socket => {
         if (aiIsPresentInMessage) {
             try {
                 const prompt = userMessageContent.replace('@ai', '').trim();
-                const aiJsonResponseString = await generateResult(prompt);
-
-                // Ensure the string is valid JSON before proceeding
-                JSON.parse(aiJsonResponseString); 
-
+                
+                // Get AI response
+                const aiResponse = await generateResult(prompt);
+                
+                // Validate the response is proper JSON
+                let responseObject;
+                try {
+                    responseObject = JSON.parse(aiResponse);
+                    
+                    // Ensure it has the minimum required field
+                    if (!responseObject.text) {
+                        responseObject.text = "I received your message but couldn't generate a proper response.";
+                    }
+                } catch (jsonError) {
+                    // If not valid JSON, wrap it in a text field
+                    responseObject = { text: aiResponse };
+                }
+                
                 const aiMessageData = {
-                    message: aiJsonResponseString,
+                    message: JSON.stringify(responseObject),
                     sender: { _id: 'ai', email: 'AI Assistant' },
                     timestamp: new Date().toISOString()
                 };
                 
-                // Immediately broadcast the AI's message
+                // Send to all clients in the room
                 io.to(socket.roomId).emit('project-message', aiMessageData);
-
-                // Then, try to save the AI message
+                
+                // Save to database
                 await saveMessage(socket.roomId, aiMessageData.sender, aiMessageData.message);
-
+                
             } catch (error) {
                 console.error("Error during AI processing:", error);
-                // Send a user-friendly error message back to the original sender
-                socket.emit('project-message', {
-                    message: JSON.stringify({ text: `AI System Error: ${error.message}` }),
-                    sender: { _id: 'ai', email: 'AI System Error' }
-                });
+                
+                // Send formatted error message
+                const errorMessage = {
+                    message: JSON.stringify({ 
+                        text: "I encountered an error processing your request.",
+                        error: error.message 
+                    }),
+                    sender: { _id: 'ai', email: 'AI Assistant' },
+                    timestamp: new Date().toISOString()
+                };
+                
+                io.to(socket.roomId).emit('project-message', errorMessage);
             }
         }
     });

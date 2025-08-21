@@ -1,28 +1,30 @@
 import mongoose from 'mongoose';
 
 const messageSchema = new mongoose.Schema({
-    // ✅ CORRECTED: Field name changed to 'project' to match your controller's query
-    project: {
+    projectId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Project',
-        required: true,
-    },
-    // ✅ CORRECTED: 'sender' is now a direct reference to the User model
-    sender: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User', // This allows .populate() to fetch the user's details
         required: true
+    },
+    sender: {
+        _id: {
+            type: String,
+            required: true
+        },
+        email: {
+            type: String,
+            required: true
+        }
     },
     message: {
         type: String,
-        required: true,
+        required: true
     },
     timestamp: {
         type: Date,
-        default: Date.now,
-    },
+        default: Date.now
+    }
 });
 
 const Message = mongoose.model('Message', messageSchema);
-
 export default Message;
