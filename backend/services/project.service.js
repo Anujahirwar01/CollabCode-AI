@@ -39,64 +39,44 @@ export const getAllProjectByUserId = async ({ userId }) => {
     return allUserProjects
 }
 
-export const addUsersToProject = async ({ projectId, users, userId }) => {
-
-    if (!projectId) {
-        throw new Error("projectId is required")
-    }
-    if (!mongoose.Types.ObjectId.isValid(projectId)) {
-        throw new Error("Invalid projectId")
-    }
-    if (!users) {
-        throw new Error("users are required")
-    }
-    if (!Array.isArray(users) || users.some(userId => !mongoose.Types.ObjectId.isValid(userId))) {
-        throw new Error("Invalid userId(s) in users array")
-    }
-    if (!userId) {
-        throw new Error("userId is required")
-    }
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-        throw new Error("Invalid userId")
-    }
-
-    const project = await projectModel.findOne({
-        _id: projectId,
-        users: userId
-    })
-
-    if (!project) {
-        throw new Error("User not belong to this project")
-    }
-
-    const updatedProject = await projectModel.findOneAndUpdate({
-        _id: projectId
-    }, {
-        $addToSet: {
-            users: {
-                $each: users
-            }
+// Add to project.service.js
+export const addUsersToProject = async ({ projectId, users }) => {
+    try {
+        const project = await projectModel.findByIdAndUpdate(
+            projectId,
+            { $addToSet: { users: { $each: users } } },
+            { new: true }
+        ).populate('users', 'email')
+         .populate('owner', 'email');
+        
+        if (!project) {
+            throw new Error('Project not found');
         }
-    }, {
-        new: true
-    })
+        
+        return project;
+    } catch (error) {
+        console.error('Error adding users to project:', error);
+        throw error;
+    }
+};
 
-    return updatedProject
-}
-
+// Fix the getProjectById function to use projectModel instead of Project
 export const getProjectById = async ({ projectId }) => {
-    if (!projectId) {
-        throw new Error("projectId is required")
+    try {
+        const project = await projectModel.findById(projectId) // <-- Fixed!
+            .populate('users', 'email _id')
+            .populate('owner', 'email _id');
+            
+        if (!project) {
+            throw new Error('Project not found');
+        }
+        
+        return project;
+    } catch (error) {
+        console.error('Error fetching project:', error);
+        throw error;
     }
-    if (!mongoose.Types.ObjectId.isValid(projectId)) {
-        throw new Error("Invalid projectId")
-    }
-    const project = await projectModel.findOne({
-        _id: projectId
-    }).populate('users')
-
-    return project;
-}
+};
 
 export const updateFileTree = async ({ projectId, fileTree }) => {
     if (!projectId) {

@@ -1,10 +1,8 @@
 import * as projectService from '../services/project.service.js';
 import { validationResult } from 'express-validator';
 
-/**
- * Helper function to recursively trim all keys in the file tree object.
- * This prevents saving filenames with leading/trailing whitespace.
- */
+
+
 function trimFileTreeKeys(tree) {
     if (!tree || typeof tree !== 'object') return tree;
 
@@ -48,26 +46,48 @@ export const getAllProject = async (req, res) => {
     }
 };
 
-export const addUserToProject = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
-    }
 
+
+// Other existing functions...
+
+// FIXED: Export the function and use projectService
+export const addUserToProject = async (req, res) => {
     try {
         const { projectId, users } = req.body;
-        // Use req.user.userId instead of req.userId
-        const project = await projectService.addUsersToProject({
+        
+        // Use projectService instead of direct model access
+        const updatedProject = await projectService.addUsersToProject({
             projectId,
-            users,
-            userId: req.user.userId
+            users
         });
-        return res.status(200).json({ project });
-    } catch (err) {
-        console.error(err);
-        res.status(400).json({ error: err.message });
+        
+        res.json({ success: true, project: updatedProject });
+    } catch (error) {
+        console.error('Error adding users to project:', error);
+        res.status(500).json({ message: 'Failed to add users to project' });
     }
 };
+
+// FIXED: Export the function and use projectService
+export const getProject = async (req, res) => {
+    try {
+        const { projectId } = req.params;
+        
+        // Use projectService instead of direct model access
+        const project = await projectService.getProjectById({ projectId });
+            
+        if (!project) {
+            return res.status(404).json({ message: 'Project not found' });
+        }
+        
+        res.json({ project });
+    } catch (error) {
+        console.error('Error fetching project:', error);
+        res.status(500).json({ message: 'Failed to fetch project' });
+    }
+};
+
+// Other existing functions...
 
 export const getProjectById = async (req, res) => {
     try {

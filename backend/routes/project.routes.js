@@ -6,6 +6,7 @@ import { authUser } from '../middleware/auth.middleware.js';
 const router = Router();
 
 
+
 router.post('/create',
     authUser,
     body('name').trim().notEmpty().withMessage('Project name is required and cannot be empty.'),
@@ -28,7 +29,7 @@ router.put('/add-user',
 
 router.get('/get-project/:projectId',
     authUser,
-    projectController.getProjectById
+    projectController.getProject // <-- Changed from getProjectById to getProject
 );
 
 router.put('/update-file-tree',
