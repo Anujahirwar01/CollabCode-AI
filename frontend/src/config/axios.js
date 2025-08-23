@@ -1,18 +1,16 @@
-// frontend/src/config/axios.js
 import axios from 'axios';
 
-const axiosInstance = axios.create({
-    baseURL: import.meta.env.VITE_API_URL, // Ensure this is correct
-    withCredentials: true,
+const instance = axios.create({
+    baseURL: 'http://localhost:3000',
+    withCredentials: true
 });
 
-axiosInstance.interceptors.request.use(
+// Request interceptor to add token
+instance.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token'); // Get the latest token from localStorage
+        const token = localStorage.getItem('token');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
-        } else {
-            delete config.headers.Authorization;
         }
         return config;
     },
@@ -21,15 +19,19 @@ axiosInstance.interceptors.request.use(
     }
 );
 
-axiosInstance.interceptors.response.use(
+// Response interceptor to handle auth errors
+instance.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response && error.response.status === 401) {
-            console.error("Authentication error caught by interceptor:", error.response.data.error || "Unauthorized");
-            // Example: window.location.href = '/login'; // Redirect to login
+        if (error.response?.status === 401) {
+            console.log('Authentication error caught by interceptor:', error.response.data.message);
+            // Clear invalid token and redirect to login
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
         }
         return Promise.reject(error);
     }
 );
 
-export default axiosInstance;
+export default instance;

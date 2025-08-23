@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef, useCallback, memo } from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { UserContext } from '../context/user.context';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../config/axios';
@@ -11,8 +11,57 @@ import {
     Plus, Users, X, Send, Play, File as FileIcon, Folder as FolderIcon,
     MessageSquare, Code, Monitor, ChevronRight, User as UserIcon
 } from 'lucide-react';
+// Keep these imports - remove the duplicate definitions below
+import WriteAiMessage from '../components/WriteAiMessage';
+import FileTreeItem from '../components/FileTreeItem';
+import SyntaxHighlightedCode from '../components/SyntaxHighlightedCode';  // Changed from SyntaxHighlightedCode
 
 // --- HELPER FUNCTIONS ---
+// Add this helper function above your component
+function ensureRequiredFiles(tree) {
+    const updatedTree = { ...tree };
+    
+    // Ensure package.json exists
+    if (!updatedTree['package.json']) {
+        console.log("Adding default package.json");
+        updatedTree['package.json'] = {
+            file: {
+                contents: JSON.stringify({
+                    name: "webcontainer-project",
+                    version: "1.0.0",
+                    description: "WebContainer Project",
+                    scripts: {
+                        start: "npx serve ."
+                    },
+                    dependencies: {}
+                }, null, 2)
+            }
+        };
+    }
+    
+    // Ensure index.html exists
+    if (!updatedTree['index.html']) {
+        console.log("Adding default index.html");
+        updatedTree['index.html'] = {
+            file: {
+                contents: `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebContainer Project</title>
+</head>
+<body>
+    <h1>WebContainer Project</h1>
+    <p>Edit files to start building your project!</p>
+</body>
+</html>`
+            }
+        };
+    }
+    
+    return updatedTree;
+}
 function trimFileTreeKeys(tree) {
     if (!tree || typeof tree !== 'object') return tree;
     return Object.keys(tree).reduce((acc, key) => {
@@ -22,24 +71,233 @@ function trimFileTreeKeys(tree) {
     }, {});
 }
 
+// Replace your existing transformToNested function with this improved version
 function transformToNested(flatTree) {
+    if (!flatTree || typeof flatTree !== 'object') {
+        return {};
+    }
+    
     const nestedTree = {};
-    for (const path in flatTree) {
-        const parts = path.split('/');
-        let currentLevel = nestedTree;
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            if (i < parts.length - 1) { // It's a directory
-                if (!currentLevel[part]) {
-                    currentLevel[part] = { directory: {} };
+    
+    // First pass: handle all directory entries
+    Object.entries(flatTree).forEach(([path, content]) => {
+        // Check if this is a directory entry
+        const isDir = content && typeof content === 'object' && content.directory;
+        if (isDir) {
+            const parts = path.split('/').filter(Boolean);
+            if (parts.length === 0) return;
+            
+            let current = nestedTree;
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                if (!current[part]) {
+                    current[part] = { directory: {} };
+                } else if (!current[part].directory) {
+                    // Convert to directory if needed
+                    current[part] = { ...current[part], directory: {} };
                 }
-                currentLevel = currentLevel[part].directory;
-            } else { // It's the file
-                currentLevel[part] = flatTree[path];
+                current = current[part].directory;
             }
         }
-    }
+    });
+    
+    // Second pass: handle file entries
+    Object.entries(flatTree).forEach(([path, content]) => {
+        // Skip directory entries
+        if (content && typeof content === 'object' && content.directory) {
+            return;
+        }
+        
+        const parts = path.split('/').filter(Boolean);
+        if (parts.length === 0) return;
+        
+        // If this is a file, ensure all parent directories exist
+        let current = nestedTree;
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            if (!current[part]) {
+                current[part] = { directory: {} };
+            } else if (!current[part].directory) {
+                // Convert to directory if needed
+                current[part] = { ...current[part], directory: {} };
+            }
+            current = current[part].directory;
+        }
+        
+        // Add the file at the leaf level
+        const fileName = parts[parts.length - 1];
+        if (typeof content === 'string') {
+            current[fileName] = { file: { contents: content } };
+        } else if (content && typeof content === 'object' && content.file) {
+            current[fileName] = content;
+        } else {
+            current[fileName] = { 
+                file: { 
+                    contents: typeof content === 'object' ? 
+                        JSON.stringify(content) : String(content || '')
+                }
+            };
+        }
+    });
+    
     return nestedTree;
+}
+// Add this validation function
+function validateFileTree(nestedTree) {
+    if (!nestedTree || typeof nestedTree !== 'object') {
+        console.error("Invalid file tree structure:", nestedTree);
+        return false;
+    }
+    
+    // Check if there are any files/directories
+    if (Object.keys(nestedTree).length === 0) {
+        console.warn("Empty file tree");
+        return true; // Empty is okay, we'll add default files
+    }
+    
+    // Validate each top-level entry
+    for (const [key, value] of Object.entries(nestedTree)) {
+        if (!value || typeof value !== 'object') {
+            console.error(`Invalid entry for ${key}:`, value);
+            return false;
+        }
+        
+        // Check if it has valid file or directory structure
+        if (value.file) {
+            if (!('contents' in value.file)) {
+                console.error(`Missing contents in file ${key}`);
+                return false;
+            }
+        } else if (value.directory) {
+            if (typeof value.directory !== 'object') {
+                console.error(`Invalid directory structure for ${key}`);
+                return false;
+            }
+        } else {
+            console.error(`Entry ${key} is neither file nor directory:`, value);
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// async function applyFileChangesToWebContainer(container, fileTree) {
+//     console.log("Applying file changes to WebContainer:", fileTree);
+    
+//     // Process each file/folder in the tree
+//     for (const path in fileTree) {
+//         try {
+//             const item = fileTree[path];
+//             const parts = path.split('/').filter(Boolean);
+            
+//             if (parts.length === 0) continue;
+            
+//             // Create parent directories if needed
+//             if (parts.length > 1) {
+//                 let currentPath = '';
+//                 for (let i = 0; i < parts.length - 1; i++) {
+//                     currentPath += '/' + parts[i];
+//                     try {
+//                         // Check if directory exists, create if it doesn't
+//                         await container.fs.stat(currentPath).catch(async () => {
+//                             console.log(`Creating directory: ${currentPath}`);
+//                             await container.fs.mkdir(currentPath, { recursive: true });
+//                         });
+//                     } catch (err) {
+//                         console.log(`Creating directory: ${currentPath}`);
+//                         await container.fs.mkdir(currentPath, { recursive: true });
+//                     }
+//                 }
+//             }
+            
+//             // Handle file content
+//             if (typeof item === 'string' || (item.file && item.file.contents)) {
+//                 const content = typeof item === 'string' ? item : item.file.contents;
+//                 console.log(`Writing file: ${path} with ${content.length} characters`);
+//                 await container.fs.writeFile(path, content);
+//             }
+//         } catch (err) {
+//             console.error(`Error applying change to ${path}:`, err);
+//         }
+//     }
+// }
+
+async function applyFileChangesToWebContainer(container, fileTree) {
+    console.log("Applying file changes to WebContainer:", fileTree);
+    
+    // First, collect all explicit directory entries
+    const directories = new Set();
+    
+    // Process each path to identify directories
+    for (const path in fileTree) {
+        try {
+            const item = fileTree[path];
+            const parts = path.split('/').filter(Boolean);
+            
+            if (parts.length === 0) continue;
+            
+            // Add parent directories
+            if (parts.length > 1) {
+                let currentPath = '';
+                for (let i = 0; i < parts.length - 1; i++) {
+                    currentPath += '/' + parts[i];
+                    directories.add(currentPath);
+                }
+            }
+            
+            // Handle explicit directory entries
+            if (path.endsWith('/') || 
+                (typeof item === 'object' && item.directory) ||
+                (typeof item === 'object' && Object.keys(item).length === 0)) {
+                
+                // If path ends with /, remove the trailing slash
+                const dirPath = path.endsWith('/') ? path.slice(0, -1) : path;
+                directories.add(dirPath);
+            }
+        } catch (err) {
+            console.error(`Error processing path ${path}:`, err);
+        }
+    }
+    
+    // Create all directories first
+    for (const dir of directories) {
+        try {
+            console.log(`Creating directory: ${dir}`);
+            await container.fs.mkdir(dir, { recursive: true })
+                .catch(err => {
+                    // Ignore "already exists" errors
+                    if (!err.message?.includes('already exists')) {
+                        console.error(`Error creating directory ${dir}:`, err);
+                    }
+                });
+        } catch (err) {
+            console.error(`Error creating directory ${dir}:`, err);
+        }
+    }
+    
+    // Then write all files
+    for (const path in fileTree) {
+        try {
+            const item = fileTree[path];
+            
+            // Skip directory entries
+            if (path.endsWith('/') || 
+                (typeof item === 'object' && item.directory) ||
+                (typeof item === 'object' && Object.keys(item).length === 0)) {
+                continue;
+            }
+            
+            // Handle file content
+            if (typeof item === 'string' || (item.file && item.file.contents)) {
+                const content = typeof item === 'string' ? item : item.file.contents;
+                console.log(`Writing file: ${path} with ${content.length} characters`);
+                await container.fs.writeFile(path, content);
+            }
+        } catch (err) {
+            console.error(`Error writing file ${path}:`, err);
+        }
+    }
 }
 
 function deepMerge(target, source) {
@@ -56,10 +314,7 @@ function deepMerge(target, source) {
     return output;
 }
 
-// --- HELPER COMPONENTS ---
-const FileTreeItem = memo(({ name, item, path, onFileSelect }) => { /* ... (user's implementation) */ });
-const SyntaxHighlightedCode = memo(({ language, code }) => { /* ... (user's implementation) */ });
-const WriteAiMessage = memo(({ rawMessage }) => { /* ... (user's implementation) */ });
+
 
 // --- MAIN PROJECT COMPONENT ---
 const Project = () => {
@@ -82,6 +337,8 @@ const Project = () => {
     const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedUserIds, setSelectedUserIds] = useState(new Set());
+    const [isLoading, setIsLoading] = useState(false);
+    const [forceUpdate, setForceUpdate] = useState(0);
     
     // Refs
     const messageBoxRef = useRef(null);
@@ -98,21 +355,37 @@ const Project = () => {
     }, []);
 
     const addCollaborators = useCallback(() => {
-        if (!projectId) return;
-        axios.put("/projects/add-user", { projectId: projectId, users: Array.from(selectedUserIds) })
-            .then(res => {
-                setIsModalOpen(false);
-                if (res.data.project) {
-                    setProject(res.data.project);
-                }
-            })
-            .catch(err => console.error("Error adding collaborators:", err));
-    }, [projectId, selectedUserIds]);
+    if (!projectId) return;
+    setIsLoading(true); // Add a loading state
+    
+    axios.put("/projects/add-user", { projectId: projectId, users: Array.from(selectedUserIds) })
+        .then(res => {
+            setIsModalOpen(false);
+            if (res.data.project) {
+                // Fetch fresh project data with populated users
+                axios.get(`/projects/get-project/${projectId}`)
+                    .then(projectRes => {
+                        setProject(projectRes.data.project);
+                        // Force side panel to close and reopen if it was open
+                        if (isSidePanelOpen) {
+                            setIsSidePanelOpen(false);
+                            setTimeout(() => setIsSidePanelOpen(true), 100);
+                        }
+                    })
+                    .catch(err => console.error("Error fetching updated project:", err))
+                    .finally(() => setIsLoading(false));
+            }
+        })
+        .catch(err => {
+            console.error("Error adding collaborators:", err);
+            setIsLoading(false);
+        });
+}, [projectId, selectedUserIds, isSidePanelOpen]);
 
     // Data fetching useEffect
     useEffect(() => {
         if (!projectId) { 
-            navigate('/home'); 
+            navigate('/'); 
             return; 
         }
 
@@ -142,45 +415,131 @@ const Project = () => {
     }, [projectId, navigate]);
 
     // WebContainer and Sockets useEffect
-    useEffect(() => {
-        if (isProjectLoading) return;
+    // Updated WebContainer initialization code in useEffect
+useEffect(() => {
+    if (isProjectLoading) return;
 
-        const socket = getSocket(projectId, setIsSocketConnected);
+    const socket = getSocket(projectId, setIsSocketConnected);
 
-        const handleNewMessage = (data) => {
-            setMessages(prev => [...prev, data]);
-            if (data.sender?._id === 'ai' && data.message && data.message.trim().startsWith('{')) {
+    // In your handleNewMessage function where AI responses are processed:
+
+const handleNewMessage = (data) => {
+    setMessages(prev => [...prev, data]);
+    
+    // Check if message is from AI and contains file tree data
+    if (data.sender?._id === 'ai' && data.message && data.message.trim().startsWith('{')) {
+        try {
+            const parsed = JSON.parse(data.message);
+            if (parsed.fileTree && Object.keys(parsed.fileTree).length > 0) {
+                console.log("AI suggested file tree changes:", parsed.fileTree);
+                
                 try {
-                    const parsed = JSON.parse(data.message);
-                    if (parsed.fileTree && Object.keys(parsed.fileTree).length > 0) {
-                        const flatTreeFromAI = trimFileTreeKeys(parsed.fileTree);
-                        const nestedTreeForMount = transformToNested(flatTreeFromAI);
-                        setFileTree(prevTree => deepMerge(prevTree, flatTreeFromAI));
-                        webContainer?.mount(nestedTreeForMount);
-                    }
-                } catch (e) {
-                    console.error("AI message was not a processable JSON object:", e);
+                    // Process the AI file tree
+                    const processedTree = {};
+                    
+                    // Process each path from the AI
+                    Object.entries(parsed.fileTree).forEach(([path, content]) => {
+                        // Normalize path (remove leading/trailing slashes)
+                        const normalizedPath = path.replace(/^\/+|\/+$/g, '');
+                        
+                        // Store this file/directory
+                        processedTree[normalizedPath] = content;
+                        
+                        // If this path has directories, create explicit entries for them
+                        if (normalizedPath.includes('/')) {
+                            const parts = normalizedPath.split('/');
+                            let currentPath = '';
+                            
+                            // Create entries for each directory in the path
+                            for (let i = 0; i < parts.length - 1; i++) {
+                                currentPath = currentPath 
+                                    ? `${currentPath}/${parts[i]}`
+                                    : parts[i];
+                                
+                                // Only create if doesn't exist
+                                if (!processedTree[currentPath]) {
+                                    processedTree[currentPath] = { directory: {} };
+                                    console.log(`Created directory entry: ${currentPath}`);
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Log the processed tree
+                    console.log("Processed tree with explicit directories:", processedTree);
+                    
+                    // Update React state with merged tree
+                    setFileTree(prevTree => {
+                        const mergedTree = { ...prevTree };
+                        
+                        // Merge the processed tree
+                        Object.entries(processedTree).forEach(([path, content]) => {
+                            mergedTree[path] = content;
+                        });
+                        
+                        // Apply to WebContainer
+                        if (webContainer) {
+                            applyFileChangesToWebContainer(webContainer, processedTree);
+                        }
+                        
+                        // Force UI update by creating a new object
+                        return { ...mergedTree };
+                    });
+                    
+                    // IMPORTANT: Force a re-render of file tree component
+                    setTimeout(() => {
+                        setForceUpdate(prev => prev + 1);
+                    }, 100);
+                } catch (err) {
+                    console.error("Error processing AI file tree:", err);
                 }
             }
-        };
+        } catch (e) {
+            console.error("AI message was not a processable JSON object:", e);
+        }
+    }
+};
 
-        const unsubscribe = attachSocketListener(socket, 'project-message', handleNewMessage);
+    const unsubscribe = attachSocketListener(socket, 'project-message', handleNewMessage);
 
-        if (!webContainerInitRef.current && Object.keys(fileTree).length > 0) {
-            webContainerInitRef.current = true;
-            getWebContainer().then(container => {
+    // WebContainer initialization with better validation and error handling
+    if (!webContainerInitRef.current && Object.keys(fileTree).length >= 0) {
+        webContainerInitRef.current = true;
+        getWebContainer()
+            .then(container => {
+                console.log("WebContainer instance created successfully");
                 setWebContainer(container);
-                const initialNestedTree = transformToNested(fileTree);
-                container.mount(initialNestedTree);
-                container.on('server-ready', (port, url) => setIframeUrl(url));
-            }).catch(error => {
+                
+                try {
+                    // Create a valid file structure with required files
+                    let initialNestedTree = transformToNested(fileTree);
+                    console.log("Initial file tree transformed:", Object.keys(initialNestedTree));
+                    
+                    // Ensure basic files exist for proper WebContainer operation
+                    initialNestedTree = ensureRequiredFiles(initialNestedTree);
+                    
+                    // Mount with validated tree structure
+                    console.log("Mounting file system with:", Object.keys(initialNestedTree));
+                    container.mount(initialNestedTree);
+                    
+                    // Setup server ready handler
+                    container.on('server-ready', (port, url) => {
+                        console.log("WebContainer server ready on port:", port);
+                        setIframeUrl(url);
+                    });
+                } catch (error) {
+                    console.error("WebContainer mount error:", error);
+                    webContainerInitRef.current = false;
+                }
+            })
+            .catch(error => {
                 console.error("WebContainer failed to initialize:", error);
                 webContainerInitRef.current = false;
             });
-        }
-        
-        return () => unsubscribe();
-    }, [projectId, isProjectLoading, fileTree, webContainer]);
+    }
+    
+    return () => unsubscribe();
+}, [projectId, isProjectLoading, fileTree, webContainer]);
 
     const handleFileSelect = useCallback((path, content) => {
         setCurrentFilePath(path);
@@ -221,11 +580,64 @@ const Project = () => {
     }, [message, projectId, user, isSocketConnected]);
 
     const runProject = useCallback(async () => {
-        if (!webContainer || !fileTree["package.json"]) return;
-        const installProcess = await webContainer.spawn("npm", ["install"]);
-        await installProcess.exit;
-        await webContainer.spawn("npm", ["start"]);
-    }, [webContainer, fileTree]);
+    if (!webContainer) {
+        console.error("WebContainer not initialized");
+        return;
+    }
+
+    try {
+        console.log("Starting project...");
+        
+        // Check if package.json exists
+        let packageJsonExists = false;
+        try {
+            await webContainer.fs.readFile('package.json');
+            packageJsonExists = true;
+        } catch (err) {
+            console.log("Creating minimal package.json");
+            await webContainer.fs.writeFile('package.json', JSON.stringify({
+                name: "webcontainer-project",
+                version: "1.0.0",
+                scripts: { start: "npx serve ." },
+            }, null, 2));
+        }
+
+        // Check if index.html exists in root
+        try {
+            await webContainer.fs.readFile('index.html');
+        } catch (err) {
+            console.log("Creating minimal index.html");
+            await webContainer.fs.writeFile('index.html', `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Project</title>
+                </head>
+                <body>
+                    <h1>WebContainer Project</h1>
+                    <p>Edit files to start building your project!</p>
+                </body>
+                </html>
+            `);
+        }
+
+        // Install dependencies and run
+        console.log("Installing dependencies...");
+        const installProcess = await webContainer.spawn('npm', ['install']);
+        const installExitCode = await installProcess.exit;
+        
+        if (installExitCode !== 0) {
+            console.warn("npm install exited with code:", installExitCode);
+        }
+        
+        console.log("Starting server...");
+        await webContainer.spawn('npm', ['start']);
+    } catch (error) {
+        console.error("Error running project:", error);
+    }
+}, [webContainer]);
     
     useEffect(() => { messageBoxRef.current?.scroll({ top: messageBoxRef.current.scrollHeight, behavior: 'smooth' }) }, [messages]);
 
@@ -266,18 +678,18 @@ const Project = () => {
             <main className="flex-grow h-full flex">
                 <div className="explorer h-full w-64 bg-slate-100 border-r flex flex-col">
                     <div className="p-4 border-b bg-white flex items-center gap-2"><FolderIcon className="w-5 h-5 text-blue-600" /><h3 className="font-semibold">Files</h3></div>
-                    <div className="file-tree flex-grow overflow-y-auto p-2">
-                        {Object.keys(fileTree).length > 0 ? (
-                            Object.entries(fileTree).map(([name, item]) => (
-                                <FileTreeItem key={name} name={name} item={item} path={`/${name}`} onFileSelect={handleFileSelect}/>
-                            ))
-                        ) : (
-                            <div className="p-4 text-center text-sm text-slate-500">
-                                <p>No files in this project.</p>
-                                <p className="mt-2">Ask the AI to create some!</p>
-                            </div>
-                        )}
-                    </div>
+                    <div className="file-tree flex-grow overflow-y-auto p-2" key={forceUpdate}>
+    {Object.keys(fileTree).length > 0 ? (
+        Object.entries(fileTree).map(([name, item]) => (
+            <FileTreeItem key={`${name}-${forceUpdate}`} name={name} item={item} path={`/${name}`} onFileSelect={handleFileSelect}/>
+        ))
+    ) : (
+        <div className="p-4 text-center text-sm text-slate-500">
+            <p>No files in this project.</p>
+            <p className="mt-2">Ask the AI to create some!</p>
+        </div>
+    )}
+</div>
                 </div>
 
                 <div className="code-editor flex flex-col flex-grow h-full">

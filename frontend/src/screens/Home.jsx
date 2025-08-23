@@ -12,27 +12,37 @@ const Home = () => {
 
     const navigate = useNavigate();
 
-    const createProject = (e) => {
-    e.preventDefault();
-    axios.post('/projects/create', { name: projectName })
-        .then((res) => {
-            console.log("Project created:", res.data);
-            setIsModalOpen(false);
-            setProjectName("");
-            setProjects(prevProjects => [...prevProjects, res.data]);
-        })
-        .catch((error) => {
-            console.error("Create project error:", error);
+    // Add the missing fetchProjects function
+    const fetchProjects = async () => {
+        try {
+            const response = await axios.get('/projects/all');
+            setProjects(response.data.projects || []);
+        } catch (error) {
+            console.error('Error fetching projects:', error);
+            console.error('Backend error details:', error.response?.data);
+        }
+    };
+
+    const createProject = async (e) => {
+        e.preventDefault(); // Prevent form default submission
+        
+        try {
+            // Log what we're sending
+            const projectData = { name: projectName };
+            console.log('Sending project data:', projectData);
             
-            if (error.response?.data?.errors) {
-                console.log("Validation errors from backend:", error.response.data.errors);
-                alert(`Validation Error: ${error.response.data.errors[0].msg}`);
-                return;
-            }
+            const response = await axios.post('/projects/create', projectData);
+            console.log('Project created:', response.data);
             
-            alert("An unknown error occurred while creating the project.");
-        });
-};
+            // Reset and refresh
+            setProjectName('');
+            setIsModalOpen(false); // Close modal
+            fetchProjects(); // Refresh projects list
+        } catch (error) {
+            console.error('Create project error:', error);
+            console.error('Error response:', error.response?.data);
+        }
+    };
 
     const handleDelete = (e, projectId) => {
         e.stopPropagation();
@@ -52,16 +62,7 @@ const Home = () => {
 
     useEffect(() => {
         if (user) {
-            axios.get('/projects/all')
-                .then((res) => {
-                    setProjects(res.data.projects);
-                })
-                .catch(err => {
-                    console.error("Error fetching projects on initial load:", err);
-                    if (err.response?.status === 401) {
-                        console.log("Authentication failed. User might need to log in again.");
-                    }
-                });
+            fetchProjects(); // Use the new function
         } else {
             setProjects([]);
         }
@@ -118,7 +119,6 @@ const Home = () => {
                     {projects.map((proj) => (
                         <div
                             key={proj._id}
-                            // ✅ CORRECTED: Navigate using the project ID in the URL
                             onClick={() => {
                                 navigate(`/project/${proj._id}`);
                             }}

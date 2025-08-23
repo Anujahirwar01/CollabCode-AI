@@ -9,9 +9,12 @@ export const UserProvider = ({ children }) => {
             return storedUser ? JSON.parse(storedUser) : null;
         } catch (error) {
             console.error("Failed to parse user from localStorage:", error);
+            localStorage.removeItem('user');
             return null;
         }
     });
+
+    const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
         if (user) {
@@ -21,16 +24,28 @@ export const UserProvider = ({ children }) => {
         }
     }, [user]);
 
-    const login = (userData) => {
+    const login = (userData, token) => {
         setUser(userData);
+        if (token) {
+            localStorage.setItem('token', token);
+        }
     };
 
     const logout = () => {
         setUser(null);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
     };
 
     return (
-        <UserContext.Provider value={{ user, setUser, login, logout }}>
+        <UserContext.Provider value={{ 
+            user, 
+            setUser, 
+            login, 
+            logout, 
+            isLoading, 
+            setIsLoading 
+        }}>
             {children}
         </UserContext.Provider>
     );

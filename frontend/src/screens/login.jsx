@@ -2,113 +2,108 @@ import React, { useState, useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from '../config/axios';
 import { UserContext } from '../context/user.context';
-import { Mail, Lock, Sparkles, ArrowRight } from 'lucide-react';
 
 const Login = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const { setUser } = useContext(UserContext);
+    const { login } = useContext(UserContext);
     const navigate = useNavigate();
 
-    function submitHandler(e) {
+    const submitHandler = async (e) => {
         e.preventDefault();
-        setIsLoading(true);
+        if (!email || !password) {
+            setError('Please fill in all fields');
+            return;
+        }
 
-        axios.post('/users/login', {
-            email,
-            password
-        }).then((res) => {
-            console.log(res.data);
-            localStorage.setItem('token', res.data.token);
-            setUser(res.data.user);
-            navigate('/'); // Navigating to your home route
-        }).catch((err) => {
-            console.error(err.response?.data || "Login failed");
-            alert("Login failed. Please check your credentials.");
-        }).finally(() => {
+        setIsLoading(true);
+        setError('');
+
+        try {
+            const response = await axios.post('/users/login', {
+                email,
+                password
+            });
+
+            if (response.data.user && response.data.token) {
+                login(response.data.user, response.data.token);
+                navigate('/');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            setError(error.response?.data?.message || 'Login failed. Please try again.');
+        } finally {
             setIsLoading(false);
-        });
-    }
+        }
+    };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 p-4">
-            <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl"></div>
-                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/20 rounded-full blur-3xl"></div>
-            </div>
-
-            <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl shadow-2xl w-full max-w-md p-8">
-                <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                        <Sparkles className="w-8 h-8 text-white" />
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+            <div className="w-full max-w-md">
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl border border-white/20">
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
+                        <p className="text-blue-200">Sign in to your account</p>
                     </div>
-                    <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
-                    <p className="text-blue-200">Sign in to your account to continue</p>
-                </div>
 
-                <form onSubmit={submitHandler} className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-semibold text-blue-100 mb-3" htmlFor="email">
-                            Email Address
-                        </label>
-                        <div className="relative">
-                            <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-blue-300" />
+                    {error && (
+                        <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
+                            {error}
+                        </div>
+                    )}
+
+                    <form onSubmit={submitHandler} className="space-y-6">
+                        <div>
+                            <label className="block text-sm font-medium text-blue-200 mb-2">
+                                Email
+                            </label>
                             <input
-                                onChange={(e) => setEmail(e.target.value)}
                                 type="email"
-                                id="email"
-                                className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 backdrop-blur-sm"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                 placeholder="Enter your email"
                                 required
                             />
                         </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-semibold text-blue-100 mb-3" htmlFor="password">
-                            Password
-                        </label>
-                        <div className="relative">
-                            <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-blue-300" />
+                        <div>
+                            <label className="block text-sm font-medium text-blue-200 mb-2">
+                                Password
+                            </label>
                             <input
-                                onChange={(e) => setPassword(e.target.value)}
                                 type="password"
-                                id="password"
-                                className="w-full pl-12 pr-4 py-4 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 backdrop-blur-sm"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200"
                                 placeholder="Enter your password"
                                 required
                             />
                         </div>
-                    </div>
 
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center"
-                    >
-                        {isLoading ? (
-                            <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        ) : (
-                            <>
-                                Sign In
-                                <ArrowRight className="w-5 h-5 ml-2" />
-                            </>
-                        )}
-                    </button>
-                </form>
-
-                <div className="mt-8 text-center">
-                    <p className="text-blue-200">
-                        Don't have an account?{' '}
-                        <Link 
-                            to="/register" 
-                            className="text-blue-400 hover:text-blue-300 font-semibold transition-colors duration-200 hover:underline"
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            Create one
-                        </Link>
-                    </p>
+                            {isLoading ? 'Signing In...' : 'Sign In'}
+                        </button>
+                    </form>
+
+                    <div className="mt-6 text-center">
+                        <p className="text-blue-200">
+                            Don't have an account?{' '}
+                            <Link 
+                                to="/register" 
+                                className="text-blue-400 hover:text-blue-300 font-semibold transition duration-200"
+                            >
+                                Sign up
+                            </Link>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
