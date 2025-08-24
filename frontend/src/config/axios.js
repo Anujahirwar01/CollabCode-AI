@@ -2,10 +2,10 @@ import axios from 'axios';
 
 const instance = axios.create({
     baseURL: 'http://localhost:3000',
-    withCredentials: true
+    withCredentials: true,
 });
 
-// Request interceptor to add token
+// Add a request interceptor to include auth token in every request
 instance.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token');
@@ -19,15 +19,13 @@ instance.interceptors.request.use(
     }
 );
 
-// Response interceptor to handle auth errors
+// Add a response interceptor to handle authentication errors
 instance.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
-            console.log('Authentication error caught by interceptor:', error.response.data.message);
-            // Clear invalid token and redirect to login
+        if (error.response && error.response.status === 401) {
+            // Unauthorized - clear token and redirect to login
             localStorage.removeItem('token');
-            localStorage.removeItem('user');
             window.location.href = '/login';
         }
         return Promise.reject(error);

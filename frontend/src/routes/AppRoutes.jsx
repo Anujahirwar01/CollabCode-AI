@@ -12,6 +12,7 @@ const AppRoutes = () => {
 
             <Routes>
                 <Route path="/" element={<UserAuth><Home /></UserAuth>} />
+                
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 {/* ✅ CORRECTED: Added the dynamic :projectId parameter to the path */}

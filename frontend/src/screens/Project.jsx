@@ -11,17 +11,16 @@ import {
     Plus, Users, X, Send, Play, File as FileIcon, Folder as FolderIcon,
     MessageSquare, Code, Monitor, ChevronRight, User as UserIcon
 } from 'lucide-react';
-// Keep these imports - remove the duplicate definitions below
 import WriteAiMessage from '../components/WriteAiMessage';
 import FileTreeItem from '../components/FileTreeItem';
-import SyntaxHighlightedCode from '../components/SyntaxHighlightedCode';  // Changed from SyntaxHighlightedCode
+import SyntaxHighlightedCode from '../components/SyntaxHighlightedCode';
 
 // --- HELPER FUNCTIONS ---
-// Add this helper function above your component
+
 function ensureRequiredFiles(tree) {
     const updatedTree = { ...tree };
     
-    // Ensure package.json exists
+ 
     if (!updatedTree['package.json']) {
         console.log("Adding default package.json");
         updatedTree['package.json'] = {
@@ -38,8 +37,7 @@ function ensureRequiredFiles(tree) {
             }
         };
     }
-    
-    // Ensure index.html exists
+ 
     if (!updatedTree['index.html']) {
         console.log("Adding default index.html");
         updatedTree['index.html'] = {
@@ -71,7 +69,7 @@ function trimFileTreeKeys(tree) {
     }, {});
 }
 
-// Replace your existing transformToNested function with this improved version
+
 function transformToNested(flatTree) {
     if (!flatTree || typeof flatTree !== 'object') {
         return {};
@@ -142,7 +140,7 @@ function transformToNested(flatTree) {
     
     return nestedTree;
 }
-// Add this validation function
+
 function validateFileTree(nestedTree) {
     if (!nestedTree || typeof nestedTree !== 'object') {
         console.error("Invalid file tree structure:", nestedTree);
@@ -181,47 +179,6 @@ function validateFileTree(nestedTree) {
     
     return true;
 }
-
-// async function applyFileChangesToWebContainer(container, fileTree) {
-//     console.log("Applying file changes to WebContainer:", fileTree);
-    
-//     // Process each file/folder in the tree
-//     for (const path in fileTree) {
-//         try {
-//             const item = fileTree[path];
-//             const parts = path.split('/').filter(Boolean);
-            
-//             if (parts.length === 0) continue;
-            
-//             // Create parent directories if needed
-//             if (parts.length > 1) {
-//                 let currentPath = '';
-//                 for (let i = 0; i < parts.length - 1; i++) {
-//                     currentPath += '/' + parts[i];
-//                     try {
-//                         // Check if directory exists, create if it doesn't
-//                         await container.fs.stat(currentPath).catch(async () => {
-//                             console.log(`Creating directory: ${currentPath}`);
-//                             await container.fs.mkdir(currentPath, { recursive: true });
-//                         });
-//                     } catch (err) {
-//                         console.log(`Creating directory: ${currentPath}`);
-//                         await container.fs.mkdir(currentPath, { recursive: true });
-//                     }
-//                 }
-//             }
-            
-//             // Handle file content
-//             if (typeof item === 'string' || (item.file && item.file.contents)) {
-//                 const content = typeof item === 'string' ? item : item.file.contents;
-//                 console.log(`Writing file: ${path} with ${content.length} characters`);
-//                 await container.fs.writeFile(path, content);
-//             }
-//         } catch (err) {
-//             console.error(`Error applying change to ${path}:`, err);
-//         }
-//     }
-// }
 
 async function applyFileChangesToWebContainer(container, fileTree) {
     console.log("Applying file changes to WebContainer:", fileTree);
@@ -266,7 +223,6 @@ async function applyFileChangesToWebContainer(container, fileTree) {
             console.log(`Creating directory: ${dir}`);
             await container.fs.mkdir(dir, { recursive: true })
                 .catch(err => {
-                    // Ignore "already exists" errors
                     if (!err.message?.includes('already exists')) {
                         console.error(`Error creating directory ${dir}:`, err);
                     }
@@ -276,7 +232,7 @@ async function applyFileChangesToWebContainer(container, fileTree) {
         }
     }
     
-    // Then write all files
+
     for (const path in fileTree) {
         try {
             const item = fileTree[path];
@@ -356,17 +312,17 @@ const Project = () => {
 
     const addCollaborators = useCallback(() => {
     if (!projectId) return;
-    setIsLoading(true); // Add a loading state
+    setIsLoading(true);
     
     axios.put("/projects/add-user", { projectId: projectId, users: Array.from(selectedUserIds) })
         .then(res => {
             setIsModalOpen(false);
             if (res.data.project) {
-                // Fetch fresh project data with populated users
+                
                 axios.get(`/projects/get-project/${projectId}`)
                     .then(projectRes => {
                         setProject(projectRes.data.project);
-                        // Force side panel to close and reopen if it was open
+                        
                         if (isSidePanelOpen) {
                             setIsSidePanelOpen(false);
                             setTimeout(() => setIsSidePanelOpen(true), 100);
@@ -392,6 +348,16 @@ const Project = () => {
         const fetchInitialData = async () => {
             setIsProjectLoading(true);
             try {
+                // Try loading from cache first
+                const cachedMessages = localStorage.getItem(`project_messages_${projectId}`);
+                if (cachedMessages) {
+                    try {
+                        setMessages(JSON.parse(cachedMessages));
+                    } catch (e) {
+                        console.error("Failed to parse cached messages");
+                    }
+                }
+                
                 const [projRes, msgRes, usersRes] = await Promise.all([
                     axios.get(`/projects/get-project/${projectId}`),
                     axios.get(`/messages/${projectId}`),
@@ -400,7 +366,13 @@ const Project = () => {
                 const initialFlatTree = trimFileTreeKeys(projRes.data.project.fileTree || {});
                 setProject(projRes.data.project);
                 setFileTree(initialFlatTree);
-                setMessages(msgRes.data.messages);
+                
+                if (msgRes.data.messages && msgRes.data.messages.length > 0) {
+                    setMessages(msgRes.data.messages);
+                    // Cache messages for future refreshes
+                    localStorage.setItem(`project_messages_${projectId}`, JSON.stringify(msgRes.data.messages));
+                }
+                
                 setUsers(usersRes.data.users);
             } catch (err) {
                 console.error("Error fetching initial data:", err);
@@ -414,19 +386,26 @@ const Project = () => {
         fetchInitialData();
     }, [projectId, navigate]);
 
-    // WebContainer and Sockets useEffect
-    // Updated WebContainer initialization code in useEffect
+
 useEffect(() => {
     if (isProjectLoading) return;
 
     const socket = getSocket(projectId, setIsSocketConnected);
 
-    // In your handleNewMessage function where AI responses are processed:
+    
 
 const handleNewMessage = (data) => {
     setMessages(prev => [...prev, data]);
     
-    // Check if message is from AI and contains file tree data
+    // Update local storage with new message
+    try {
+        const cachedMsgs = JSON.parse(localStorage.getItem(`project_messages_${projectId}`) || '[]');
+        cachedMsgs.push(data);
+        localStorage.setItem(`project_messages_${projectId}`, JSON.stringify(cachedMsgs));
+    } catch (e) {
+        console.error("Failed to update message cache:", e);
+    }
+  
     if (data.sender?._id === 'ai' && data.message && data.message.trim().startsWith('{')) {
         try {
             const parsed = JSON.parse(data.message);
@@ -434,29 +413,21 @@ const handleNewMessage = (data) => {
                 console.log("AI suggested file tree changes:", parsed.fileTree);
                 
                 try {
-                    // Process the AI file tree
+                      
+
                     const processedTree = {};
                     
-                    // Process each path from the AI
+         
                     Object.entries(parsed.fileTree).forEach(([path, content]) => {
-                        // Normalize path (remove leading/trailing slashes)
                         const normalizedPath = path.replace(/^\/+|\/+$/g, '');
-                        
-                        // Store this file/directory
                         processedTree[normalizedPath] = content;
-                        
-                        // If this path has directories, create explicit entries for them
                         if (normalizedPath.includes('/')) {
                             const parts = normalizedPath.split('/');
                             let currentPath = '';
-                            
-                            // Create entries for each directory in the path
                             for (let i = 0; i < parts.length - 1; i++) {
                                 currentPath = currentPath 
                                     ? `${currentPath}/${parts[i]}`
                                     : parts[i];
-                                
-                                // Only create if doesn't exist
                                 if (!processedTree[currentPath]) {
                                     processedTree[currentPath] = { directory: {} };
                                     console.log(`Created directory entry: ${currentPath}`);
@@ -465,28 +436,22 @@ const handleNewMessage = (data) => {
                         }
                     });
                     
-                    // Log the processed tree
                     console.log("Processed tree with explicit directories:", processedTree);
                     
-                    // Update React state with merged tree
                     setFileTree(prevTree => {
                         const mergedTree = { ...prevTree };
                         
-                        // Merge the processed tree
                         Object.entries(processedTree).forEach(([path, content]) => {
                             mergedTree[path] = content;
                         });
                         
-                        // Apply to WebContainer
                         if (webContainer) {
                             applyFileChangesToWebContainer(webContainer, processedTree);
                         }
                         
-                        // Force UI update by creating a new object
                         return { ...mergedTree };
                     });
                     
-                    // IMPORTANT: Force a re-render of file tree component
                     setTimeout(() => {
                         setForceUpdate(prev => prev + 1);
                     }, 100);
@@ -502,7 +467,6 @@ const handleNewMessage = (data) => {
 
     const unsubscribe = attachSocketListener(socket, 'project-message', handleNewMessage);
 
-    // WebContainer initialization with better validation and error handling
     if (!webContainerInitRef.current && Object.keys(fileTree).length >= 0) {
         webContainerInitRef.current = true;
         getWebContainer()
@@ -511,18 +475,14 @@ const handleNewMessage = (data) => {
                 setWebContainer(container);
                 
                 try {
-                    // Create a valid file structure with required files
                     let initialNestedTree = transformToNested(fileTree);
                     console.log("Initial file tree transformed:", Object.keys(initialNestedTree));
                     
-                    // Ensure basic files exist for proper WebContainer operation
                     initialNestedTree = ensureRequiredFiles(initialNestedTree);
                     
-                    // Mount with validated tree structure
                     console.log("Mounting file system with:", Object.keys(initialNestedTree));
                     container.mount(initialNestedTree);
                     
-                    // Setup server ready handler
                     container.on('server-ready', (port, url) => {
                         console.log("WebContainer server ready on port:", port);
                         setIframeUrl(url);
@@ -563,9 +523,7 @@ const handleNewMessage = (data) => {
         axios.put('/projects/update-file-tree', { projectId: projectId, fileTree: newFileTree });
     };
     
-    // ✅ DEBUGGING VERSION of sendMessage
     const sendMessage = useCallback(() => {
-        // This log will tell us exactly which condition is failing
         console.log("Attempting to send message. Checking conditions:", {
             isMessageEmpty: !message.trim(),
             isProjectIdMissing: !projectId,
@@ -576,6 +534,13 @@ const handleNewMessage = (data) => {
 
         const payload = { projectId, message, sender: { _id: user._id, email: user.email }};
         sendSocketMessage(getSocket(projectId), 'project-message', payload);
+        
+        // Also save to local storage cache
+        const newMsg = {...payload, timestamp: new Date().toISOString(), _id: Date.now().toString()};
+        const cachedMsgs = JSON.parse(localStorage.getItem(`project_messages_${projectId}`) || '[]');
+        cachedMsgs.push(newMsg);
+        localStorage.setItem(`project_messages_${projectId}`, JSON.stringify(cachedMsgs));
+        
         setMessage("");
     }, [message, projectId, user, isSocketConnected]);
 
@@ -588,7 +553,6 @@ const handleNewMessage = (data) => {
     try {
         console.log("Starting project...");
         
-        // Check if package.json exists
         let packageJsonExists = false;
         try {
             await webContainer.fs.readFile('package.json');
@@ -602,7 +566,6 @@ const handleNewMessage = (data) => {
             }, null, 2));
         }
 
-        // Check if index.html exists in root
         try {
             await webContainer.fs.readFile('index.html');
         } catch (err) {
@@ -623,7 +586,6 @@ const handleNewMessage = (data) => {
             `);
         }
 
-        // Install dependencies and run
         console.log("Installing dependencies...");
         const installProcess = await webContainer.spawn('npm', ['install']);
         const installExitCode = await installProcess.exit;
@@ -646,7 +608,7 @@ const handleNewMessage = (data) => {
     const currentFileContent = openFiles.get(currentFilePath);
 
     return (
-        <div className='h-screen w-screen flex bg-slate-50 overflow-hidden'>
+        <div className='h-screen w-screen flex bg-slate-50 overflow-auto'>
             <section className="relative flex flex-col h-screen w-96 bg-white border-r">
                 <header className='flex justify-between items-center p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white shrink-0'>
                     <h2 className="font-semibold flex items-center gap-2"><MessageSquare size={18}/> Project Chat</h2>
@@ -693,14 +655,118 @@ const handleNewMessage = (data) => {
                 </div>
 
                 <div className="code-editor flex flex-col flex-grow h-full">
-                    <div className="flex justify-between items-center bg-white border-b p-2"><div className="flex">{Array.from(openFiles.keys()).map(path => (<button key={path} onClick={() => setCurrentFilePath(path)} className={`px-4 py-2 flex items-center gap-2 rounded-lg text-sm ${currentFilePath === path ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}><Code size={14}/> {path.split('/').pop()}</button>))}</div><button onClick={runProject} disabled={!webContainer} className='flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50'><Play size={14} /> Run</button></div>
-                    <div className="flex-grow bg-[#282c34] text-white overflow-hidden relative">{currentFilePath && currentFileContent !== undefined ? (<><textarea value={currentFileContent} onChange={(e) => handleCodeChange(currentFilePath, e.target.value)} onBlur={() => handleSaveFile(currentFilePath)} className="w-full h-full p-4 bg-transparent border-none outline-none resize-none font-mono text-sm" style={{ color: 'transparent', caretColor: 'white' }} /><div className="absolute top-0 left-0 w-full h-full p-4 pointer-events-none overflow-auto" aria-hidden="true"><SyntaxHighlightedCode language="javascript" code={currentFileContent} /></div></>) : (<div className="flex items-center justify-center h-full text-slate-400">Choose a file to begin editing.</div>)}</div>
+                    <div className="flex justify-between items-center bg-white border-b p-2">
+                        <div className="flex">
+                            {Array.from(openFiles.keys()).map(path => (
+                                <button 
+                                    key={path} 
+                                    onClick={() => setCurrentFilePath(path)} 
+                                    className={`px-4 py-2 flex items-center gap-2 rounded-lg text-sm ${currentFilePath === path ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}
+                                >
+                                    <Code size={14}/> {path.split('/').pop()}
+                                </button>
+                            ))}
+                        </div>
+                        <button 
+                            onClick={runProject} 
+                            disabled={!webContainer} 
+                            className='flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50'
+                        >
+                            <Play size={14} /> Run
+                        </button>
+                    </div>
+                    <div className="flex-grow bg-[#282c34] text-white overflow-auto relative">
+                        {currentFilePath && currentFileContent !== undefined ? (
+                            <>
+                                <textarea 
+                                    value={currentFileContent} 
+                                    onChange={(e) => handleCodeChange(currentFilePath, e.target.value)} 
+                                    onBlur={() => handleSaveFile(currentFilePath)} 
+                                    onScroll={(e) => {
+                                        // Sync scroll position between textarea and syntax highlight
+                                        const highlighter = e.target.nextSibling;
+                                        if (highlighter) {
+                                            highlighter.scrollTop = e.target.scrollTop;
+                                            highlighter.scrollLeft = e.target.scrollLeft;
+                                        }
+                                    }}
+                                    className="w-full h-full p-4 bg-transparent border-none outline-none resize-none font-mono text-sm absolute top-0 left-0 overflow-auto" 
+                                    style={{ color: 'transparent', caretColor: 'white', zIndex: 1 }} 
+                                    spellCheck="false"
+                                />
+                                <div 
+                                    className="absolute top-0 left-0 w-full h-full p-4 pointer-events-none overflow-auto font-mono text-sm" 
+                                    aria-hidden="true"
+                                >
+                                    <SyntaxHighlightedCode language="javascript" code={currentFileContent} />
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex items-center justify-center h-full text-slate-400">
+                                Choose a file to begin editing.
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {iframeUrl && (<div className="w-1/3 h-full border-l bg-white flex flex-col"><div className="p-3 border-b flex items-center gap-2"><Monitor size={16}/> Preview</div><iframe src={iframeUrl} className="w-full h-full" title="WebContainer Preview"></iframe></div>)}
+                {iframeUrl && (
+                    <div className="w-1/3 h-full border-l bg-white flex flex-col">
+                        <div className="p-3 border-b flex items-center gap-2">
+                            <Monitor size={16}/> Preview
+                        </div>
+                        <iframe 
+                            src={iframeUrl} 
+                            className="w-full h-full" 
+                            title="WebContainer Preview"
+                        ></iframe>
+                    </div>
+                )}
             </main>
             
-            {isModalOpen && (<div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"><div className="bg-white rounded-2xl shadow-2xl w-full max-w-md"><header className='flex justify-between items-center p-6 border-b'><h2 className='text-xl font-bold'>Add Collaborators</h2><button onClick={() => setIsModalOpen(false)} className='p-2 hover:bg-slate-100 rounded-lg'><X size={16} /></button></header><div className="users-list p-6 max-h-96 overflow-auto"><div className="space-y-2">{users.filter(u => u._id !== user._id).map(u => (<div key={u._id} className={`user cursor-pointer p-3 flex gap-3 items-center border rounded-xl ${selectedUserIds.has(u._id) ? 'bg-blue-50 border-blue-200' : ''}`} onClick={() => handleUserClick(u._id)}><div className='w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-semibold'>{(u.email?.charAt(0) || '?').toUpperCase()}</div><div className="flex-grow"><h1 className='font-semibold'>{u.email}</h1></div>{selectedUserIds.has(u._id) && (<div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center"><ChevronRight className="w-3 h-3 text-white"/></div>)}</div>))}</div></div><div className="p-6 border-t"><button onClick={addCollaborators} disabled={selectedUserIds.size === 0} className='w-full px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold disabled:opacity-50'>Add {selectedUserIds.size} Collaborator{selectedUserIds.size !== 1 ? 's' : ''}</button></div></div></div>)}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+                        <header className='flex justify-between items-center p-6 border-b'>
+                            <h2 className='text-xl font-bold'>Add Collaborators</h2>
+                            <button onClick={() => setIsModalOpen(false)} className='p-2 hover:bg-slate-100 rounded-lg'>
+                                <X size={16} />
+                            </button>
+                        </header>
+                        <div className="users-list p-6 max-h-96 overflow-auto">
+                            <div className="space-y-2">
+                                {users.filter(u => u._id !== user._id).map(u => (
+                                    <div 
+                                        key={u._id} 
+                                        className={`user cursor-pointer p-3 flex gap-3 items-center border rounded-xl ${selectedUserIds.has(u._id) ? 'bg-blue-50 border-blue-200' : ''}`} 
+                                        onClick={() => handleUserClick(u._id)}
+                                    >
+                                        <div className='w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-semibold'>
+                                            {(u.email?.charAt(0) || '?').toUpperCase()}
+                                        </div>
+                                        <div className="flex-grow">
+                                            <h1 className='font-semibold'>{u.email}</h1>
+                                        </div>
+                                        {selectedUserIds.has(u._id) && (
+                                            <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+                                                <ChevronRight className="w-3 h-3 text-white"/>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="p-6 border-t">
+                            <button 
+                                onClick={addCollaborators} 
+                                disabled={selectedUserIds.size === 0} 
+                                className='w-full px-4 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold disabled:opacity-50'
+                            >
+                                Add {selectedUserIds.size} Collaborator{selectedUserIds.size !== 1 ? 's' : ''}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

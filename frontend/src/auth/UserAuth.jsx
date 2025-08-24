@@ -19,7 +19,7 @@ const UserAuth = ({ children }) => {
             
             // If on public path and already logged in, redirect to home
             if (isPublicPath && user && token) {
-                navigate('/home');
+                navigate('/'); // Changed from '/home' to '/' for consistency
                 setLoading(false);
                 return;
             }
