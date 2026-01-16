@@ -1,14 +1,12 @@
-// backend/controllers/message.controller.js
-import Message from '../models/Message.model.js'; // Adjust path if necessary
+import Message from '../models/Message.model.js'; 
 import messageModel from '../models/Message.model.js';
-import Project from '../models/project.model.js'; // Assuming you have a Project model
+import Project from '../models/project.model.js'; 
 
-// Function to save a message to the database (called from WebSocket handler)
 export const saveMessage = async (projectId, sender, messageContent) => {
     try {
         const newMessage = new Message({
             projectId,
-            sender, // sender should be { _id: user._id, email: user.email }
+            sender,
             message: messageContent,
         });
         await newMessage.save();
@@ -20,13 +18,13 @@ export const saveMessage = async (projectId, sender, messageContent) => {
     }
 };
 
-// Function to fetch messages for a project (for the new HTTP GET endpoint)
+
 export const getMessagesByProjectId = async (req, res) => {
     try {
         const { projectId } = req.params;
         const messages = await messageModel.find({ project: projectId })
-            .populate('sender', 'email') // Populate sender's email
-            .sort({ timestamp: 1 });   // Sort by oldest first
+            .populate('sender', 'email')
+            .sort({ timestamp: 1 });
 
         res.status(200).json({ messages });
     } catch (error) {
