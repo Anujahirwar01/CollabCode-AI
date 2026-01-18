@@ -69,15 +69,15 @@ io.on('connection', socket => {
         if (aiIsPresentInMessage) {
             try {
                 const prompt = userMessageContent.replace('@ai', '').trim();
-                
+
                 // Get AI response
                 const aiResponse = await generateResult(prompt);
-                
+
                 // Validate the response is proper JSON
                 let responseObject;
                 try {
                     responseObject = JSON.parse(aiResponse);
-                    
+
                     // Ensure it has the minimum required field
                     if (!responseObject.text) {
                         responseObject.text = "I received your message but couldn't generate a proper response.";
@@ -86,32 +86,43 @@ io.on('connection', socket => {
                     // If not valid JSON, wrap it in a text field
                     responseObject = { text: aiResponse };
                 }
-                
+
                 const aiMessageData = {
                     message: JSON.stringify(responseObject),
                     sender: { _id: 'ai', email: 'AI Assistant' },
                     timestamp: new Date().toISOString()
                 };
-                
+
                 // Send to all clients in the room
                 io.to(socket.roomId).emit('project-message', aiMessageData);
-                
+
                 // Save to database
                 await saveMessage(socket.roomId, aiMessageData.sender, aiMessageData.message);
-                
+
             } catch (error) {
                 console.error("Error during AI processing:", error);
-                
+
+                let errorText = "I encountered an error processing your request.";
+
+                // Provide user-friendly error messages
+                if (error.message.includes('rate limited')) {
+                    errorText = "🔄 AI service is currently rate limited. Please try again in a few minutes.";
+                } else if (error.message.includes('quota exceeded')) {
+                    errorText = "⏳ AI service quota exceeded. Please try again later.";
+                } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                    errorText = "🌐 Network error connecting to AI service. Please check your connection.";
+                }
+
                 // Send formatted error message
                 const errorMessage = {
-                    message: JSON.stringify({ 
-                        text: "I encountered an error processing your request.",
-                        error: error.message 
+                    message: JSON.stringify({
+                        text: errorText,
+                        type: 'error'
                     }),
                     sender: { _id: 'ai', email: 'AI Assistant' },
                     timestamp: new Date().toISOString()
                 };
-                
+
                 io.to(socket.roomId).emit('project-message', errorMessage);
             }
         }

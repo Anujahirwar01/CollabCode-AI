@@ -67,30 +67,62 @@ export const loginController = async (req, res) => {
 }
 
 export const profileController = async (req, res) => {
+    try {
+        const userId = req.user.userId;
 
-    res.status(200).json({
-        user: req.user
-    });
+        // Get user details without password
+        const user = await userModel.findById(userId).select('-password');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
 
-}
+        // Get user's projects
+        const projects = await userService.getUserProjects(userId);
+
+        res.status(200).json({
+            user,
+            projects,
+            stats: {
+                totalProjects: projects.length,
+                joinDate: user.createdAt || user._id.getTimestamp()
+            }
+        });
+    } catch (error) {
+        console.error('Profile fetch error:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
 
 export const logoutController = async (req, res) => {
     try {
+        // Handle both cookie and header token
+        let token;
+        if (req.cookies && req.cookies.token) {
+            token = req.cookies.token;
+        } else if (req.headers.authorization) {
+            token = req.headers.authorization.split(' ')[1];
+        }
 
-        const token = req.cookies.token || req.headers.authorization.split(' ')[1];
+        if (token && redisClient.isConnected && redisClient.isConnected()) {
+            // Add token to blacklist if Redis is available
+            await redisClient.set(`blacklist_${token}`, 'logout', { ex: 60 * 60 * 24 });
+        }
 
-        redisClient.set(token, 'logout', 'EX', 60 * 60 * 24);
+        // Clear cookie if it exists
+        res.clearCookie('token');
 
         res.status(200).json({
             message: 'Logged out successfully'
         });
-
-
     } catch (err) {
-        console.log(err);
-        res.status(400).send(err.message);
+        console.error('Logout error:', err);
+        // Even if Redis fails, we can still clear the cookie and respond success
+        res.clearCookie('token');
+        res.status(200).json({
+            message: 'Logged out successfully'
+        });
     }
-}
+};
 
 // ✅ CORRECTED VERSION of the function
 export const getAllUsersController = async (req, res) => {
