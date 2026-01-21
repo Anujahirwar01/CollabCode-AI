@@ -9,8 +9,8 @@ const userSchema = new mongoose.Schema({
         unique: true,
         trim: true,
         lowercase: true,
-        minLength: [ 6, 'Email must be at least 6 characters long' ],
-        maxLength: [ 50, 'Email must not be longer than 50 characters' ]
+        minLength: [6, 'Email must be at least 6 characters long'],
+        maxLength: [50, 'Email must not be longer than 50 characters']
     },
 
     password: {
@@ -37,6 +37,6 @@ userSchema.methods.generateJWT = function () {
 }
 
 
-const User = mongoose.model('user', userSchema);
+const User = mongoose.model('User', userSchema);
 
 export default User;

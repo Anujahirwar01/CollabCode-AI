@@ -1,27 +1,26 @@
 import mongoose from 'mongoose';
 
 
-const projectSchema = new mongoose.Schema({
+const projectSchema = mongoose.Schema({
     name: {
         type: String,
-        lowercase: true,
-        required: true,
-        trim: true,
-        unique: [ true, 'Project name must be unique' ],
+        required: true
     },
-
-    users: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'user'
-        }
-    ],
     fileTree: {
-        type: Object,
+        type: mongoose.Schema.Types.Mixed,
         default: {}
     },
-
-})
+    users: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+    }],
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true  // Keep this required
+    },
+    // other fields...
+}, { timestamps: true });
 
 
 const Project = mongoose.model('project', projectSchema)
