@@ -17,18 +17,7 @@ router.post('/login',
     body('password').isLength({ min: 3 }).withMessage('Password must be at least 3 characters long'),
     userController.loginController);
 
-router.get('/profile', authMiddleware.authUser, async (req, res) => {
-    try {
-        const user = await userModel.findById(req.user.userId).select('-password');
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        res.json({ user });
-    } catch (error) {
-        console.error('Profile fetch error:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
+router.get('/profile', authMiddleware.authUser, userController.profileController);
 
 
 router.get('/logout', authMiddleware.authUser, userController.logoutController);

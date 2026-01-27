@@ -16,7 +16,7 @@ router.post('/create',
 // ✅ RESTORED: This now correctly calls your controller to get all projects.
 router.get('/all',
     authUser,
-    projectController.getAllProject
+    projectController.getProjects
 );
 
 router.put('/add-user',
@@ -27,10 +27,7 @@ router.put('/add-user',
     projectController.addUserToProject
 );
 
-router.get('/get-project/:projectId',
-    authUser,
-    projectController.getProject // <-- Changed from getProjectById to getProject
-);
+router.get('/get-project/:projectId', authUser, projectController.getProject);
 
 router.put('/update-file-tree',
     authUser,
