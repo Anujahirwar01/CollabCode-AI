@@ -1,43 +1,37 @@
 import projectModel from '../models/project.model.js';
 import mongoose from 'mongoose';
 
-export const createProject = async ({
-    name, userId
-}) => {
-    if (!name) {
-        throw new Error('Name is required')
-    }
-    if (!userId) {
-        throw new Error('UserId is required')
-    }
-
-    let project;
+export const createProject = async (req, res) => {
     try {
-        project = await projectModel.create({
-            name,
-            users: [userId]
-        });
-    } catch (error) {
-        if (error.code === 11000) {
-            throw new Error('Project name already exists');
+        const { name } = req.body;
+
+        // Get userId from req.user (added by auth middleware)
+        const userId = req.user?.userId;
+
+        console.log("Create project request:", { name, userId, user: req.user });
+
+        if (!name) {
+            return res.status(400).json({ message: 'Project name is required' });
         }
-        throw error;
+
+        if (!userId) {
+            return res.status(400).json({ message: 'User authentication required' });
+        }
+
+        // Create project with explicit owner field
+        const project = await projectModel.create({
+            name,
+            users: [userId],
+            owner: userId,  // Set owner field explicitly
+            fileTree: {}
+        });
+
+        return res.status(201).json({ project });
+    } catch (err) {
+        console.error("Create project error:", err);
+        return res.status(400).json({ message: err.message });
     }
-
-    return project;
-}
-
-export const getAllProjectByUserId = async ({ userId }) => {
-    if (!userId) {
-        throw new Error('UserId is required')
-    }
-
-    const allUserProjects = await projectModel.find({
-        users: userId
-    })
-
-    return allUserProjects
-}
+};
 
 // Add to project.service.js
 export const addUsersToProject = async ({ projectId, users }) => {
@@ -47,12 +41,12 @@ export const addUsersToProject = async ({ projectId, users }) => {
             { $addToSet: { users: { $each: users } } },
             { new: true }
         ).populate('users', 'email')
-         .populate('owner', 'email');
-        
+            .populate('owner', 'email');
+
         if (!project) {
             throw new Error('Project not found');
         }
-        
+
         return project;
     } catch (error) {
         console.error('Error adding users to project:', error);
@@ -61,16 +55,34 @@ export const addUsersToProject = async ({ projectId, users }) => {
 };
 
 // Fix the getProjectById function to use projectModel instead of Project
-export const getProjectById = async ({ projectId }) => {
+export const getProjectByIds = async ({ projectId }) => {
     try {
         const project = await projectModel.findById(projectId) // <-- Fixed!
             .populate('users', 'email _id')
             .populate('owner', 'email _id');
-            
+
         if (!project) {
             throw new Error('Project not found');
         }
-        
+
+        return project;
+    } catch (error) {
+        console.error('Error fetching project:', error);
+        throw error;
+    }
+};
+
+// Add the missing getProjectById function that the controller expects
+export const getProjectById = async ({ projectId }) => {
+    try {
+        const project = await projectModel.findById(projectId)
+            .populate('users', 'email _id')
+            .populate('owner', 'email _id');
+
+        if (!project) {
+            throw new Error('Project not found');
+        }
+
         return project;
     } catch (error) {
         console.error('Error fetching project:', error);
