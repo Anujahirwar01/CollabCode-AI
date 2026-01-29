@@ -14,6 +14,7 @@ const Login = () => {
 
     const submitHandler = async (e) => {
         e.preventDefault();
+
         if (!email || !password) {
             setError('Please fill in all fields');
             return;
@@ -31,10 +32,12 @@ const Login = () => {
             if (response.data.user && response.data.token) {
                 login(response.data.user, response.data.token);
                 navigate('/');
+            } else {
+                setError('Login failed - invalid response from server');
             }
         } catch (error) {
             console.error('Login error:', error);
-            setError(error.response?.data?.message || 'Login failed. Please try again.');
+            setError(error.response?.data?.message || error.response?.data?.errors || 'Login failed. Please try again.');
         } finally {
             setIsLoading(false);
         }
@@ -96,8 +99,8 @@ const Login = () => {
                     <div className="mt-6 text-center">
                         <p className="text-blue-200">
                             Don't have an account?{' '}
-                            <Link 
-                                to="/register" 
+                            <Link
+                                to="/register"
                                 className="text-blue-400 hover:text-blue-300 font-semibold transition duration-200"
                             >
                                 Sign up

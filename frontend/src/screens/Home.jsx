@@ -2,7 +2,7 @@ import React, { useContext, useState, useEffect } from 'react';
 import { UserContext } from '../context/user.context';
 import axios from "../config/axios";
 import { useNavigate } from 'react-router-dom';
-import { Plus, Users, FolderOpen, Sparkles, Trash2 } from 'lucide-react';
+import { Plus, Users, FolderOpen, Sparkles, Trash2, User } from 'lucide-react';
 
 const Home = () => {
     const { user } = useContext(UserContext);
@@ -25,15 +25,15 @@ const Home = () => {
 
     const createProject = async (e) => {
         e.preventDefault(); // Prevent form default submission
-        
+
         try {
             // Log what we're sending
             const projectData = { name: projectName };
             console.log('Sending project data:', projectData);
-            
+
             const response = await axios.post('/projects/create', projectData);
             console.log('Project created:', response.data);
-            
+
             // Reset and refresh
             setProjectName('');
             setIsModalOpen(false); // Close modal
@@ -83,13 +83,24 @@ const Home = () => {
                                 <p className="text-sm text-slate-600">Welcome back, {user?.email}</p>
                             </div>
                         </div>
-                        <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                        >
-                            <Plus className="w-4 h-4 mr-2" />
-                            New Project
-                        </button>
+                        <div>
+                            <div className="flex items-center space-x-4">
+                                <button
+                                    onClick={() => navigate('/profile')}
+                                    className="flex items-center space-x-2 px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <User className="w-4 h-4" />
+                                    <span>Profile</span>
+                                </button>
+                                <button
+                                    onClick={() => setIsModalOpen(true)}
+                                    className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                >
+                                    <Plus className="w-4 h-4 mr-2" />
+                                    New Project
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </header>
@@ -172,7 +183,7 @@ const Home = () => {
                 </div>
 
                 {projects.length === 0 && (
-                     <div className="text-center py-16">
+                    <div className="text-center py-16">
                         <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
                             <FolderOpen className="w-12 h-12 text-slate-400" />
                         </div>
