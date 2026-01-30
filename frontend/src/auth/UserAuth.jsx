@@ -15,15 +15,16 @@ const UserAuth = ({ children }) => {
 
     useEffect(() => {
         const validateAuth = async () => {
+            // Simple localStorage-only authentication
             const token = localStorage.getItem('token');
-            
+
             // If on public path and already logged in, redirect to home
             if (isPublicPath && user && token) {
-                navigate('/'); // Changed from '/home' to '/' for consistency
+                navigate('/');
                 setLoading(false);
                 return;
             }
-            
+
             // If on public path and no user, allow access
             if (isPublicPath) {
                 setLoading(false);
@@ -32,7 +33,6 @@ const UserAuth = ({ children }) => {
 
             // For protected routes, check authentication
             if (!token) {
-                console.log('No token found, redirecting to login');
                 navigate('/login');
                 setLoading(false);
                 return;
@@ -45,7 +45,6 @@ const UserAuth = ({ children }) => {
                     setUser(response.data.user);
                     setLoading(false);
                 } catch (error) {
-                    console.error('Failed to get user profile:', error);
                     // Token might be invalid, clear it and redirect
                     logout();
                     navigate('/login');
