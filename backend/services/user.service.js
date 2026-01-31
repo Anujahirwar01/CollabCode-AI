@@ -1,4 +1,5 @@
 import userModel from '../models/user.model.js';
+import projectModel from '../models/project.model.js';
 
 
 
@@ -29,4 +30,22 @@ export const getAllUsers = async () => {
     // It finds all users and excludes the password field for security.
     const users = await userModel.find().select('-password');
     return users;
+};
+
+// Get user's projects for profile
+export const getUserProjects = async (userId) => {
+    try {
+        const projects = await projectModel.find({
+            users: { $in: [userId] }
+        })
+            .populate('users', 'email')
+            .populate('owner', 'email')
+            .select('name fileTree users owner createdAt updatedAt')
+            .sort({ updatedAt: -1 });
+
+        return projects;
+    } catch (error) {
+        console.error('Error fetching user projects:', error);
+        throw error;
+    }
 };
