@@ -1,63 +1,62 @@
 import React, { useState, memo } from 'react';
 import { File, Folder, ChevronDown, ChevronRight } from 'lucide-react';
 
-const FileTreeItem = memo(({ name, item, path, onFileSelect }) => {
-    // Always start with folders open for better UX
+const FileTreeItem = memo(({ name, item, path, onFileSelect, level = 0 }) => {
     const [isOpen, setIsOpen] = useState(true);
-    
-    // Remove unused forceUpdate state - this should be in the parent component
-    // const [forceUpdate, setForceUpdate] = useState(0);
-    
-    // Fix directory detection - check both directory property and structure
+
     const isDirectory = Boolean(item && item.directory);
     const isFile = Boolean(item && item.file);
-    
-    // Add more detailed logging to help debug
-    console.log(`Rendering FileTreeItem: ${name}, isDir: ${isDirectory}, isFile: ${isFile}, path: ${path}`, 
-                item ? JSON.stringify(item, null, 2) : 'null');
-    
-    const toggleOpen = () => {
+
+    const toggleOpen = (e) => {
+        e.stopPropagation();
         if (isDirectory) {
             setIsOpen(!isOpen);
         }
     };
-    
-    const handleSelect = () => {
+
+    const handleSelect = (e) => {
+        e.stopPropagation();
         if (isFile && item.file) {
             onFileSelect(path, item.file.contents || '');
         }
     };
-    
+
+    const indentStyle = {
+        paddingLeft: `${level * 12 + 8}px`
+    };
+
     return (
         <div className="file-tree-item">
-            <div 
-                className={`flex items-center gap-1 p-1 hover:bg-slate-200 rounded cursor-pointer ${
-                    isDirectory ? 'text-blue-600' : 'text-slate-700'
-                }`}
+            <div
+                className={`flex items-center gap-1 py-1 px-2 hover:bg-slate-200 rounded cursor-pointer text-sm ${isDirectory ? 'text-blue-600 font-medium' : 'text-slate-700'
+                    }`}
+                style={indentStyle}
                 onClick={isDirectory ? toggleOpen : handleSelect}
+                title={isDirectory ? `Folder: ${name}` : `File: ${name}`}
             >
                 {isDirectory && (
-                    <span className="mr-1">
-                        {isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    <span className="flex-shrink-0 mr-1">
+                        {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                     </span>
                 )}
                 {isDirectory ? (
-                    <Folder size={16} className="text-blue-500" />
+                    <Folder size={16} className="text-blue-500 flex-shrink-0" />
                 ) : (
-                    <File size={16} className="text-gray-500 ml-4" />
+                    <File size={16} className="text-gray-500 flex-shrink-0" style={{ marginLeft: isDirectory ? 0 : '20px' }} />
                 )}
-                <span className="text-sm ml-1">{name}</span>
+                <span className="ml-1 truncate">{name}</span>
             </div>
-            
+
             {isDirectory && isOpen && item.directory && (
-                <div className="ml-4 border-l border-slate-200">
+                <div className="ml-2">
                     {Object.entries(item.directory || {}).map(([childName, childItem]) => (
-                        <FileTreeItem 
+                        <FileTreeItem
                             key={childName}
                             name={childName}
                             item={childItem}
-                            path={`${path}/${childName}`}
+                            path={path ? `${path}/${childName}` : childName}
                             onFileSelect={onFileSelect}
+                            level={level + 1}
                         />
                     ))}
                 </div>
